@@ -16,12 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
+
 bin_PROGRAMS = print_uptime
 
-AM_CFLAGS = -fno-exceptions
-AM_CFLAGS = -Os 
-AM_CFLAGS = -Wall -Wextra
-
-AM_LDFLAGS =  -lpthread -lz -lccsp_common $(DBUS_LIBS)
-print_uptime_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/source/include -I$(top_srcdir)/source/util/utils $(DBUS_CFLAGS)
 print_uptime_SOURCES = print_uptime.c
