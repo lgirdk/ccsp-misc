@@ -42,6 +42,8 @@ endif
 
 SUBDIRS = Psmcli parcon LTime TimeConv webcfg_decoder MemFrag_Calc $(SETLED) $(MULTIPART_UTIL) $(BRIDGE_UTIL) $(WBCFG_TEST) dhcp_client_utils msgq_util EventSubscription FwBankInfo $(RDKSCHEDULER_TESTAPP)
 
+SUBDIRS += psm_defaults_create
+
 if WITH_GTEST_SUPPORT
 SUBDIRS += test
 endif
