@@ -114,6 +114,8 @@ AC_C_INLINE
 # Checks for library functions.
 AC_FUNC_MALLOC
 
+PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.24.0])
+
 AC_CONFIG_FILES(
 	source/Psmcli/Makefile
 	source/LTime/Makefile
@@ -121,6 +123,7 @@ AC_CONFIG_FILES(
 	source/parcon/Makefile
 	source/webcfg_decoder/Makefile
 	source/MemFrag_Calc/Makefile
+	source/psm_defaults_create/Makefile
 	source/Makefile
 	Makefile
 )
