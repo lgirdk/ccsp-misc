@@ -154,6 +154,7 @@ AC_CONFIG_FILES(
 	source/webcfg_decoder/Makefile
 	source/MemFrag_Calc/Makefile
 	source/EventSubscription/Makefile
+	source/psm_defaults_create/Makefile
 	source/Makefile
 	source/dhcp_client_utils/Makefile
 	source/msgq_util/Makefile
