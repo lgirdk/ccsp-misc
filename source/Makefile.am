@@ -34,5 +34,5 @@ if MULTIPART_UTIL_ENABLE
 MULTIPART_UTIL = multipartRoot
 endif
 
-SUBDIRS = Psmcli parcon LTime TimeConv print_uptime webcfg_decoder MemFrag_Calc $(SETLED) $(MULTIPART_UTIL) $(WBCFG_TEST)
+SUBDIRS = Psmcli parcon LTime TimeConv print_uptime webcfg_decoder MemFrag_Calc psm_defaults_create $(SETLED) $(MULTIPART_UTIL) $(WBCFG_TEST)
 
