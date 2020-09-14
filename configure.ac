@@ -145,6 +145,7 @@ AC_CONFIG_FILES(
 	source/parcon/Makefile
 	source/webcfg_decoder/Makefile
 	source/MemFrag_Calc/Makefile
+	source/psm_defaults_create/Makefile
 	source/Makefile
 	source/dhcp_client_utils/Makefile
 	Makefile
