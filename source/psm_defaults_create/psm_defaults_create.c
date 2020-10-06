@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syscfg/syscfg.h>
-#include <glib.h>
+#include <rdk_linkedlist.h>
 
 /****************************************************************************/
 /*                          DEFINES:                                        */
@@ -48,9 +48,9 @@ typedef struct node
  *   filename  - Filename to save the contents of a linked-list
  * Return Values : 0 on success, -1 on error
  ****************************************************************************/
-int saveListToFile(GList *node_head, char *filename)
+int saveListToFile(rdkList_t *node_head, char *filename)
 {
-    GList *element = node_head;
+    rdkList_t *element = node_head;
     node_t *tmp = NULL;
     int rc = -1;
 
@@ -59,10 +59,10 @@ int saveListToFile(GList *node_head, char *filename)
     {
         while (element != NULL)
         {
-            tmp = element->data;
+            tmp = element->m_pUserData;
             if (tmp->line)
                 fprintf(fptr, "%s", tmp->line);
-            element = g_list_next(element);
+            element = rdk_list_find_next_node(element);
         }
         /* Complete the file by adding </Provision> at the end */
         fprintf(fptr, "</Provision>\n");
@@ -108,7 +108,7 @@ void createNode(node_t **node, char *data)
  *   file_name - Name of the file which has to be added to a linked-list
  * Return Values : 0 on success, -1 on error
  ****************************************************************************/
-int parseFile(char *file_name, GList **node_head)
+int parseFile(char *file_name, rdkList_t **node_head)
 {
     FILE *sfp;
     int count;
@@ -136,7 +136,7 @@ int parseFile(char *file_name, GList **node_head)
         if (node != NULL)
         {
             /* Instead of append, prepend it and reverse it finally. This will reduce the iteration time */
-            *node_head = g_list_prepend(*node_head, node);
+            *node_head = rdk_list_prepend_node(*node_head, node);
         }
     }
 
@@ -154,7 +154,7 @@ int parseFile(char *file_name, GList **node_head)
  *   node      - Address of a node in the linked-list
  * Return Values : void
  ****************************************************************************/
-void clearNode(gpointer node)
+void clearNode(void *node)
 {
     node_t *tmp = (node_t *)(node);
     if (NULL != tmp)
@@ -176,9 +176,9 @@ void clearNode(gpointer node)
  *   node_head - Address of the first node in a linked-list
  * Return Values : void
  ****************************************************************************/
-void clearAlNodes(GList **node_head)
+void clearAlNodes(rdkList_t **node_head)
 {
-    g_list_free_full(*node_head, &clearNode);
+    rdk_list_free_all_nodes_custom(*node_head, &clearNode);
 }
 
 /****************************************************************************
@@ -189,7 +189,7 @@ void clearAlNodes(GList **node_head)
  *   pattern   - String which has to be compared
  * Return Values : 0 on success, -1 on error
  ****************************************************************************/
-gint comparePattern(gconstpointer node, gconstpointer pattern)
+int comparePattern(const void *node, const void *pattern)
 {
     node_t *tmp = (node_t *)node;
     char *tmp_pattern = (char *)pattern;
@@ -217,30 +217,30 @@ gint comparePattern(gconstpointer node, gconstpointer pattern)
  *   line      - Line which has to be added to the linked-list
  * Return Values : void
 ****************************************************************************/
-void insertOrReplaceNode(GList **node_head, char *pattern, char *line)
+void insertOrReplaceNode(rdkList_t **node_head, char *pattern, char *line)
 {
-    GList *match = NULL;
+    rdkList_t *match = NULL;
 
     /* Create a node with the current line */
     node_t *node = NULL;
     createNode(&node, line);
 
     /* If node_head is null, then match will be null. In this case only add the customer-specific file to the linked-list */
-    match = g_list_find_custom(*node_head, pattern, (GCompareFunc)comparePattern);
+    match = rdk_list_find_node_custom(*node_head, pattern, (fnRDKListCustomCompare)comparePattern);
     if (NULL != match)
     {
         if (node != NULL)
-            *node_head = g_list_insert_before(*node_head, match, node);
+            *node_head = rdk_list_add_node_before(*node_head, match, node);
 
-        *node_head = g_list_remove_link(*node_head, match);
-        clearNode(match->data);
-        g_list_free(match);
+        *node_head = rdk_list_remove_node(*node_head, match);
+        clearNode(match->m_pUserData);
+        rdk_list_free_all_nodes(match);
         match = NULL;
     }
     else
     {
         if (node != NULL)
-            *node_head = g_list_prepend(*node_head, node);
+            *node_head = rdk_list_prepend_node(*node_head, node);
     }
 }
 
@@ -254,7 +254,7 @@ void insertOrReplaceNode(GList **node_head, char *pattern, char *line)
  *   src       - String which has to be compared
  * Return Values : 0 on success, -1 on error
 ****************************************************************************/
-int applyCustomerDefaults(const char *src, GList **node_head)
+int applyCustomerDefaults(const char *src, rdkList_t **node_head)
 {
     FILE *sfp;
     int count = 0;
@@ -308,7 +308,7 @@ int main(int argc, char **argv)
     int customer_index = 0;
     if (argc == 1)
     {
-        GList *node_head = NULL;
+        rdkList_t *node_head = NULL;
         int default_parsed = parseFile(BBHM_DEF_FILE, &node_head);
 
         if (syscfg_init() == 0)
@@ -327,7 +327,7 @@ int main(int argc, char **argv)
                     char heading[] = "<Provision>\n";
                     createNode(&node, heading);
                     if (node != NULL)
-                        node_head = g_list_prepend(node_head, node);
+                        node_head = rdk_list_prepend_node(node_head, node);
                 }
 
                 snprintf(cus_def_file, sizeof(cus_def_file), BBHM_CUS_DEF_FILE, customer_index);
@@ -335,7 +335,7 @@ int main(int argc, char **argv)
             }
         }
 
-        node_head = g_list_reverse(node_head);
+        node_head = rdk_list_reverse(node_head);
         rc = saveListToFile(node_head, BBHM_NEW_DEF_FILE);
         clearAlNodes(&node_head);
         node_head = NULL;
