@@ -17,5 +17,4 @@
 
 bin_PROGRAMS = psm_defaults_create
 psm_defaults_create_SOURCES = psm_defaults_create.c
-psm_defaults_create_CFLAGS = $(GLIB_CFLAGS)
-psm_defaults_create_LDADD = $(GLIB_LIBS) -lsyscfg
+psm_defaults_create_LDADD = -lrdklist -lsyscfg
