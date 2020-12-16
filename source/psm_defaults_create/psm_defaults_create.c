@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <syscfg/syscfg.h>
 #include <rdk_linkedlist.h>
 
@@ -31,14 +32,11 @@
 /*                          DEFINES:                                        */
 /****************************************************************************/
 
-#define BBHM_DEF_FILE "/usr/ccsp/config/bbhm_def_cfg.xml"
-#define BBHM_CUS_DEF_FILE "/etc/utopia/defaults/lg_bbhm_cust_%d.xml"
-#define BBHM_NEW_DEF_FILE "/tmp/lg_bbhm_def_cfg.xml"
-
 typedef struct node
 {
     char *line;
-} node_t;
+}
+node_t;
 
 /****************************************************************************
  * Name          : saveListToFile
@@ -48,10 +46,10 @@ typedef struct node
  *   filename  - Filename to save the contents of a linked-list
  * Return Values : 0 on success, -1 on error
  ****************************************************************************/
-int saveListToFile(rdkList_t *node_head, char *filename)
+static int saveListToFile (rdkList_t *node_head, char *filename)
 {
     rdkList_t *element = node_head;
-    node_t *tmp = NULL;
+    node_t *tmp;
     int rc = -1;
 
     FILE *fptr = fopen(filename, "w");
@@ -82,21 +80,22 @@ int saveListToFile(rdkList_t *node_head, char *filename)
  *   data      - Line which has to be added to the node
  * Return Values : void
  ****************************************************************************/
-void createNode(node_t **node, char *data)
+static void createNode (node_t **node, char *data)
 {
-    *node = (node_t *)malloc(sizeof(node_t));
-    if (*node != NULL)
+    *node = malloc(sizeof(node_t));
+
+    if (*node == NULL)
+    {
+        return;
+    }
+
+    if (data == NULL)
     {
         (*node)->line = NULL;
-        if (data != NULL)
-        {
-            (*node)->line = (char *)malloc((strlen(data) + 1) * sizeof(char));
-            if ((*node)->line != NULL)
-            {
-                strncpy((*node)->line, data, strlen(data));
-                (*node)->line[strlen(data)] = '\0';
-            }
-        }
+    }
+    else
+    {
+        (*node)->line = strdup(data);
     }
 }
 
@@ -108,7 +107,7 @@ void createNode(node_t **node, char *data)
  *   file_name - Name of the file which has to be added to a linked-list
  * Return Values : 0 on success, -1 on error
  ****************************************************************************/
-int parseFile(char *file_name, rdkList_t **node_head)
+static int parseFile (char *file_name, rdkList_t **node_head)
 {
     FILE *sfp;
     int count;
@@ -142,8 +141,9 @@ int parseFile(char *file_name, rdkList_t **node_head)
 
     if (line)
         free(line);
-    if (sfp)
-        fclose(sfp);
+
+    fclose(sfp);
+
     return 0;
 }
 
@@ -154,18 +154,19 @@ int parseFile(char *file_name, rdkList_t **node_head)
  *   node      - Address of a node in the linked-list
  * Return Values : void
  ****************************************************************************/
-void clearNode(void *node)
+static void clearNode (void *node)
 {
     node_t *tmp = (node_t *)(node);
-    if (NULL != tmp)
+
+    if (tmp != NULL)
     {
-        if (NULL != tmp->line)
+        if (tmp->line != NULL)
         {
             free(tmp->line);
             tmp->line = NULL;
         }
+
         free(tmp);
-        tmp = NULL;
     }
 }
 
@@ -176,7 +177,7 @@ void clearNode(void *node)
  *   node_head - Address of the first node in a linked-list
  * Return Values : void
  ****************************************************************************/
-void clearAlNodes(rdkList_t **node_head)
+static clearAlNodes (rdkList_t **node_head)
 {
     rdk_list_free_all_nodes_custom(*node_head, &clearNode);
 }
@@ -189,21 +190,19 @@ void clearAlNodes(rdkList_t **node_head)
  *   pattern   - String which has to be compared
  * Return Values : 0 on success, -1 on error
  ****************************************************************************/
-int comparePattern(const void *node, const void *pattern)
+static int comparePattern (const void *node, const void *pattern)
 {
     node_t *tmp = (node_t *)node;
     char *tmp_pattern = (char *)pattern;
+
     if (tmp && tmp->line && tmp_pattern)
     {
-        if (NULL != strstr(tmp->line, tmp_pattern))
+        if (strstr(tmp->line, tmp_pattern) != NULL)
         {
             return 0;
         }
-        else
-        {
-            return -1;
-        }
     }
+
     return -1;
 }
 
@@ -217,7 +216,7 @@ int comparePattern(const void *node, const void *pattern)
  *   line      - Line which has to be added to the linked-list
  * Return Values : void
 ****************************************************************************/
-void insertOrReplaceNode(rdkList_t **node_head, char *pattern, char *line)
+static void insertOrReplaceNode (rdkList_t **node_head, char *pattern, char *line)
 {
     rdkList_t *match = NULL;
 
@@ -227,7 +226,7 @@ void insertOrReplaceNode(rdkList_t **node_head, char *pattern, char *line)
 
     /* If node_head is null, then match will be null. In this case only add the customer-specific file to the linked-list */
     match = rdk_list_find_node_custom(*node_head, pattern, (fnRDKListCustomCompare)comparePattern);
-    if (NULL != match)
+    if (match != NULL)
     {
         if (node != NULL)
             *node_head = rdk_list_add_node_before(*node_head, match, node);
@@ -254,7 +253,7 @@ void insertOrReplaceNode(rdkList_t **node_head, char *pattern, char *line)
  *   src       - String which has to be compared
  * Return Values : 0 on success, -1 on error
 ****************************************************************************/
-int applyCustomerDefaults(const char *src, rdkList_t **node_head)
+static int applyCustomerDefaults (const char *src, rdkList_t **node_head)
 {
     FILE *sfp;
     int count = 0;
@@ -267,76 +266,81 @@ int applyCustomerDefaults(const char *src, rdkList_t **node_head)
         return -1;
     }
 
-    while (0 < (count = getline(&line, &line_len, sfp)))
+    while ((count = getline(&line, &line_len, sfp)) > 0)
     {
-        char *unmodified_line = (char *)malloc(count + 1);
-        if (unmodified_line != NULL)
+        char *unmodified_line = malloc(count + 1);
+
+        if (unmodified_line == NULL)
         {
-            memcpy(unmodified_line, line, count);
-            unmodified_line[count] = '\0';
+            break;
         }
+
+        memcpy(unmodified_line, line, count + 1);
 
         /* Parse the name from a line. Example of a line:  <Record name="ClientSteerEnable" type="astr">False</Record> */
         char *_ptr = strtok(line, " ");
         char *name = strtok(NULL, " ");
 
-        if (name == NULL)
+        if (name != NULL)
         {
-            if (unmodified_line)
-                free(unmodified_line);
-            continue;
+            insertOrReplaceNode(node_head, name, unmodified_line);
         }
 
-        insertOrReplaceNode(node_head, name, unmodified_line);
-
-        if (unmodified_line)
-            free(unmodified_line);
+        free(unmodified_line);
     }
 
-    if (sfp)
-        fclose(sfp);
     if (line)
         free(line);
+
+    fclose(sfp);
+
     return 0;
 }
 
-int main(int argc, char **argv)
+int main (int argc, char **argv)
 {
+    char cus_buff[8];
+    char cus_def_file[50];
+    int customer_index;
     int rc = -1;
-    char cus_buff[4] = {0};
-    char cus_def_file[50] = {0};
-    int customer_index = 0;
+
     if (argc == 1)
     {
         rdkList_t *node_head = NULL;
-        int default_parsed = parseFile(BBHM_DEF_FILE, &node_head);
+        int default_parse_result = parseFile("/usr/ccsp/config/bbhm_def_cfg.xml", &node_head);
 
-        if (syscfg_init() == 0)
+        if (syscfg_get(NULL, "Customer_Index", cus_buff, sizeof(cus_buff)) == 0)
         {
-            syscfg_get(NULL, "Customer_Index", cus_buff, sizeof(cus_buff));
             customer_index = atoi(cus_buff);
+
             if (customer_index > 0)
             {
-                /* If "/usr/ccsp/config/bbhm_def_cfg.xml" file parsing failed,
-                we still need to parse "/etc/utopia/defaults/lg_bbhm_cust_%d.xml" file.
-                Since lg_bbhm_cust_%d.xml file doesn't contain the first line as "<Provision>",
-                add "<Provision>" as the first node in linked-list. */
-                if (default_parsed == -1)
+                /*
+                   If "/usr/ccsp/config/bbhm_def_cfg.xml" file parsing failed,
+                   we still need to parse "/etc/utopia/defaults/lg_bbhm_cust_%d.xml" file.
+                   Since lg_bbhm_cust_%d.xml file doesn't contain the first line as "<Provision>",
+                   add "<Provision>" as the first node in linked-list.
+                */
+                if (default_parse_result != 0)
                 {
                     node_t *node = NULL;
-                    char heading[] = "<Provision>\n";
+                    char *heading = "<Provision>\n";
+
                     createNode(&node, heading);
                     if (node != NULL)
+                    {
                         node_head = rdk_list_prepend_node(node_head, node);
+                    }
                 }
 
-                snprintf(cus_def_file, sizeof(cus_def_file), BBHM_CUS_DEF_FILE, customer_index);
+                snprintf(cus_def_file, sizeof(cus_def_file), "/etc/utopia/defaults/lg_bbhm_cust_%d.xml", customer_index);
+
                 applyCustomerDefaults(cus_def_file, &node_head);
             }
         }
 
         node_head = rdk_list_reverse(node_head);
-        rc = saveListToFile(node_head, BBHM_NEW_DEF_FILE);
+        rc = saveListToFile(node_head, "/tmp/lg_bbhm_def_cfg.xml");
         clearAlNodes(&node_head);
         node_head = NULL;
     }
