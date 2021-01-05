@@ -322,10 +322,29 @@ int main (int argc, char **argv)
     char cus_def_file[50];
     int customer_index;
     int rc = -1;
-    int default_parse_result;
     rdkList_t *node_head = NULL;
 
-    default_parse_result = parseFile("/usr/ccsp/config/bbhm_def_cfg.xml", &node_head);
+    parseFile("/usr/ccsp/config/bbhm_def_cfg.xml", &node_head);
+
+    /*
+       If parsing the main .xml file failed then manually add "<Provision>" as
+       the first node in the linked-list (since the customer specific .xml
+       files expect to be appended to an .xml file which includes one and so
+       don't include one of their own).
+       This is quite an obscure corner case. In reality, any failure to parse
+       the main .xml file should probably be a fatal error...
+    */
+    if (node_head == NULL)
+    {
+        node_t *node = NULL;
+        char *heading = "<Provision>\n";
+
+        createNode(&node, heading);
+        if (node != NULL)
+        {
+            node_head = rdk_list_prepend_node(node_head, node);
+        }
+    }
 
     if (syscfg_get(NULL, "Customer_Index", cus_buff, sizeof(cus_buff)) == 0)
     {
@@ -333,32 +352,15 @@ int main (int argc, char **argv)
 
         if (customer_index > 0)
         {
-            /*
-               If parsing the main .xml file failed then manually add
-               "<Provision>" as the first node in the linked-list (since the
-               customer specific .xml files expect to be appended to an .xml
-               file which includes one and so don't include one of their own).
-               This is quite an obscure corner case. In reality, any failure to
-               parse the main .xml file should probably be a fatal error...
-            */
-            if (default_parse_result != 0)
-            {
-                node_t *node = NULL;
-                char *heading = "<Provision>\n";
-
-                createNode(&node, heading);
-                if (node != NULL)
-                {
-                    node_head = rdk_list_prepend_node(node_head, node);
-                }
-            }
-
             snprintf(cus_def_file, sizeof(cus_def_file), "/etc/utopia/defaults/lg_bbhm_cust_%d.xml", customer_index);
-
             applyCustomerDefaults(cus_def_file, &node_head);
         }
     }
 
+    /*
+       As an optimisation, nodes are prepended to the list during parsing, and
+       so need to be reversed before writing to the outut file...
+    */
     node_head = rdk_list_reverse(node_head);
 
     rc = saveListToFile(node_head, "/tmp/lg_bbhm_def_cfg.xml");
