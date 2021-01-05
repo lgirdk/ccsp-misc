@@ -32,6 +32,13 @@
 /*                          DEFINES:                                        */
 /****************************************************************************/
 
+/* 
+   Explicit freeing may be useful to prevent warnings when testing with
+   Valgrind etc, but in the normal case it's more efficient to let all
+   allocated memory be freed automatically when the application exits.
+*/
+//#define FREE_MEMORY_BEFORE_EXIT
+
 typedef struct node
 {
     char *line;
@@ -48,28 +55,36 @@ node_t;
  ****************************************************************************/
 static int saveListToFile (rdkList_t *node_head, char *filename)
 {
-    rdkList_t *element = node_head;
-    node_t *tmp;
-    int rc = -1;
+    FILE *fptr;
+    rdkList_t *element;
 
-    FILE *fptr = fopen(filename, "w");
-    if (fptr != NULL && element != NULL)
+    if ((fptr = fopen(filename, "w")) == NULL)
     {
-        while (element != NULL)
-        {
-            tmp = element->m_pUserData;
-            if (tmp->line)
-                fprintf(fptr, "%s", tmp->line);
-            element = rdk_list_find_next_node(element);
-        }
-        /* Complete the file by adding </Provision> at the end */
-        fprintf(fptr, "</Provision>\n");
-        rc = 0;
+        return -1;
     }
-    if (fptr)
-        fclose(fptr);
 
-    return rc;
+    element = node_head;
+
+    while (element != NULL)
+    {
+        node_t *tmp = element->m_pUserData;
+
+        if (tmp->line)
+        {
+            fprintf(fptr, "%s", tmp->line);
+        }
+
+        element = rdk_list_find_next_node(element);
+    }
+
+    /*
+       Complete the file by adding </Provision> at the end.
+    */
+    fprintf(fptr, "</Provision>\n");
+
+    fclose(fptr);
+
+    return 0;
 }
 
 /****************************************************************************
@@ -170,17 +185,21 @@ static void clearNode (void *node)
     }
 }
 
+#if defined (FREE_MEMORY_BEFORE_EXIT)
+
 /****************************************************************************
- * Name          : clearAlNodes
+ * Name          : clearAllNodes
  * Purpose       : Api to free a linked-list
  * Parameters    :
  *   node_head - Address of the first node in a linked-list
  * Return Values : void
  ****************************************************************************/
-static clearAlNodes (rdkList_t **node_head)
+static clearAllNodes (rdkList_t **node_head)
 {
     rdk_list_free_all_nodes_custom(*node_head, &clearNode);
 }
+
+#endif
 
 /****************************************************************************
  * Name          : comparePattern
@@ -303,47 +322,50 @@ int main (int argc, char **argv)
     char cus_def_file[50];
     int customer_index;
     int rc = -1;
+    int default_parse_result;
+    rdkList_t *node_head = NULL;
 
-    if (argc == 1)
+    default_parse_result = parseFile("/usr/ccsp/config/bbhm_def_cfg.xml", &node_head);
+
+    if (syscfg_get(NULL, "Customer_Index", cus_buff, sizeof(cus_buff)) == 0)
     {
-        rdkList_t *node_head = NULL;
-        int default_parse_result = parseFile("/usr/ccsp/config/bbhm_def_cfg.xml", &node_head);
+        customer_index = atoi(cus_buff);
 
-        if (syscfg_get(NULL, "Customer_Index", cus_buff, sizeof(cus_buff)) == 0)
+        if (customer_index > 0)
         {
-            customer_index = atoi(cus_buff);
-
-            if (customer_index > 0)
+            /*
+               If parsing the main .xml file failed then manually add
+               "<Provision>" as the first node in the linked-list (since the
+               customer specific .xml files expect to be appended to an .xml
+               file which includes one and so don't include one of their own).
+               This is quite an obscure corner case. In reality, any failure to
+               parse the main .xml file should probably be a fatal error...
+            */
+            if (default_parse_result != 0)
             {
-                /*
-                   If "/usr/ccsp/config/bbhm_def_cfg.xml" file parsing failed,
-                   we still need to parse "/etc/utopia/defaults/lg_bbhm_cust_%d.xml" file.
-                   Since lg_bbhm_cust_%d.xml file doesn't contain the first line as "<Provision>",
-                   add "<Provision>" as the first node in linked-list.
-                */
-                if (default_parse_result != 0)
+                node_t *node = NULL;
+                char *heading = "<Provision>\n";
+
+                createNode(&node, heading);
+                if (node != NULL)
                 {
-                    node_t *node = NULL;
-                    char *heading = "<Provision>\n";
-
-                    createNode(&node, heading);
-                    if (node != NULL)
-                    {
-                        node_head = rdk_list_prepend_node(node_head, node);
-                    }
+                    node_head = rdk_list_prepend_node(node_head, node);
                 }
-
-                snprintf(cus_def_file, sizeof(cus_def_file), "/etc/utopia/defaults/lg_bbhm_cust_%d.xml", customer_index);
-
-                applyCustomerDefaults(cus_def_file, &node_head);
             }
-        }
 
-        node_head = rdk_list_reverse(node_head);
-        rc = saveListToFile(node_head, "/tmp/lg_bbhm_def_cfg.xml");
-        clearAlNodes(&node_head);
-        node_head = NULL;
+            snprintf(cus_def_file, sizeof(cus_def_file), "/etc/utopia/defaults/lg_bbhm_cust_%d.xml", customer_index);
+
+            applyCustomerDefaults(cus_def_file, &node_head);
+        }
     }
+
+    node_head = rdk_list_reverse(node_head);
+
+    rc = saveListToFile(node_head, "/tmp/lg_bbhm_def_cfg.xml");
+
+#if defined (FREE_MEMORY_BEFORE_EXIT)
+    clearAllNodes(&node_head);
+#endif
 
     return rc;
 }
