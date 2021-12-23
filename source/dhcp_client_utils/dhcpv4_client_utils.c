@@ -167,7 +167,7 @@ pid_t start_dhcpv4_client (dhcp_params * params)
         return 0;
     }
 
-    syscfg_init();
+
     pid_t pid = FAILURE;
 
     // init part
