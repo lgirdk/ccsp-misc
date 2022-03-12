@@ -16,9 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-AM_CFLAGS = -D_ANSC_LINUX
-AM_CFLAGS += -D_ANSC_USER
-AM_CFLAGS += -D_ANSC_LITTLE_ENDIAN_
+AM_CFLAGS =
 AM_CFLAGS += -D_NO_PKI_KB5_SUPPORT
 AM_CFLAGS += -D_ANSC_USE_OPENSSL_
 AM_CFLAGS += -D_ANSC_AES_USED_
