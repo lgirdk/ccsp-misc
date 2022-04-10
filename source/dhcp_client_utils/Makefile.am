@@ -18,7 +18,7 @@
 ##########################################################################
 AM_CFLAGS =
 
-AM_CPPFLAGS = -Wall -Werror
+AM_CPPFLAGS =
 
 ACLOCAL_AMFLAGS = -I m4
 
