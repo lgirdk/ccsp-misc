@@ -115,9 +115,9 @@ static int get_dhcpv6_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** 
 
 /*
  * start_dhcpv6_client ()
- * @description: This API will build dhcp request/send options and start dibbler client program.
+ * @description: This API will build dhcp request/send options and start DHCPv6 client program.
  * @params     : input parameter to pass interface specific arguments
- * @return     : returns the pid of the dibbler client program else return error code on failure
+ * @return     : returns the pid of the DHCPv6 client program else return error code on failure
  *
  */
 pid_t start_dhcpv6_client (dhcp_params * params)
@@ -151,9 +151,14 @@ pid_t start_dhcpv6_client (dhcp_params * params)
         return pid;
     }
 
-    // building args and starting dhcpv4 client
+    // building args and starting dhcpv6 client
+
+#ifdef DHCPV6_CLIENT_DIBBLER
     DBG_PRINT("%s %d: Starting Dibbler Clients\n", __FUNCTION__, __LINE__);
     pid =  start_dibbler (params, req_opt_list, send_opt_list);
+#else
+#error "DHCPv6 clients other than dibbler are not yet supported"
+#endif
 
     //exit part
     DBG_PRINT("%s %d: freeing all allocated resources\n", __FUNCTION__, __LINE__);
