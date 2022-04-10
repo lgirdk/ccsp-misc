@@ -18,7 +18,6 @@
 ##########################################################################
 
 AM_CFLAGS = -D_GNU_SOURCE
-AM_CFLAGS += -Wall -Wextra
 
 bin_PROGRAMS = bridgeUtils
 
