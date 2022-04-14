@@ -17,9 +17,6 @@
 # limitations under the License.
 ##########################################################################
 AM_CFLAGS =
-AM_CFLAGS += -D_CCSP_CWMP_TCP_CONNREQ_HANDLER
-AM_CFLAGS += -D_ANSC_IPV6_COMPATIBLE_
-AM_CFLAGS += -DBUILD_WEB
 
 AM_CPPFLAGS =
 
