@@ -22,6 +22,16 @@
 #include <syscfg/syscfg.h>
 #include <string.h>
 
+#define VENDOR_SPEC_FILE "/etc/udhcpc.vendor_specific"
+#define VENDOR_OPTIONS_LENGTH 512
+
+#ifndef CONFIG_VENDOR_NAME
+#define CONFIG_VENDOR_NAME "Undefined Vendor"
+#endif
+#ifndef CONFIG_VENDOR_ID
+#define CONFIG_VENDOR_ID "123456"
+#endif
+
 #if DHCPV4_CLIEN_TI_UDHCPC
 static pid_t start_ti_udhcpc (dhcp_params * params)
 {
@@ -32,6 +42,275 @@ static pid_t start_ti_udhcpc (dhcp_params * params)
     }
 }
 #endif  // DHCPV4_CLIENT_TI_UDHCPC
+
+/***
+ * Parses a file containing vendor specific options
+ *
+ * options:  buffer containing the returned parsed options
+ * length:   length of options
+ *
+ * Option code 43 - DHCPv4 Vendor- Vendor Specific Information Options
+ *            Sub-option code 2,  <Device type> - EROUTER
+ *            Sub-option code 3,  ECM:<eSAFE1:eSAFE2...eSAFEn>
+ *            Sub-option code 4,  <device serial number>
+ *            Sub-option code 5,  <Hardware version>
+ *            Sub-option code 6,  <Software version>
+ *            Sub-option code 7,  <Boot ROM version>  <-- Boot ROM version is mostly meaningless, assume this actually means Bootloader version.
+ *            Sub-option code 8,  <OUI>
+ *            Sub-option code 9,  <Model Number>
+ *            Sub-option code 10, <Vendor name>
+ *            Sub-option code 15, eSAFEs with cfg file encapsulation: <eSAFE1:eSAFE2...eSAFEn>
+ *
+ *      Code    Type   Len   Val   Type Len      Val    Type
+ *     +-----+-------+-----+-----+----+----+-----------+----+--------
+ *     | 43  |   2   |  3  | ECM |  3 |  8 |  ECM:EMTA |  4 | . . . .
+ *     +-----+-------+-----+-----+----+----+-----------+----+---------
+ *
+ *
+ * returns:  0 on successful parsing, else -1
+ ***/
+
+static int verifyBufferSpace(const int length, int opt_len, int size)
+{
+    if (length - opt_len <= size) {
+        DBG_PRINT("%s: Too many options\n", __FUNCTION__);
+        return 0;
+    }
+
+    return 1;
+}
+
+static int writeTOHexFromAscii(char *options, const int length, int opt_len, char *value)
+{
+    char *ptr;
+
+    for (ptr = value; *ptr != 0; ptr++) {
+        if (!verifyBufferSpace(length, opt_len, 2)) {
+            return 0;
+        }
+        opt_len += sprintf(options + opt_len, "%02x", *ptr);
+    }
+
+    return opt_len;
+}
+
+/*
+   Warning: This function should be kept aligned with dhcp_parse_vendor_info() in utopia/source/service_wan/service_wan.c
+*/
+static int prepare_dhcp43_optvalue( char *options, const int length, char *ethWanMode )
+{
+    FILE *fp;
+    char subopt_num[12] ={0}, subopt_value[64] = {0} , mode[8] = {0} ;
+    int num_read;
+    char buf[64];
+    int opt_len = 0;   //Total characters read
+    int subopt;
+    size_t len;
+
+    *options = 0;
+
+    if ((fp = fopen(VENDOR_SPEC_FILE, "ra")) != NULL) {
+        while ((num_read = fscanf(fp, "%7s %11s %63s", mode, subopt_num, subopt_value)) == 3) {
+            if (length - opt_len < 6) {
+                DBG_PRINT("%s: Too many options\n", __FUNCTION__ );
+                fclose(fp);   //CID 61631 : Resource leak
+                return -1;
+            }
+
+            if ( ( strcmp(mode,"DOCSIS") == 0 ) && ( strcmp (ethWanMode,"true") == 0) )
+            {
+                continue;
+            }
+
+            if ( ( strcmp(mode,"ETHWAN") == 0 ) && ( strcmp (ethWanMode,"false") == 0) )
+            {
+                continue;
+            }
+
+            //Print the option number
+            if (strcmp(subopt_num, "SUBOPTION1") == 0) {
+                if (!verifyBufferSpace(length, opt_len, 2)) {
+                    fclose(fp);
+                    return -1;
+                }
+                opt_len += sprintf(options + opt_len, "01");
+            }
+            else if (strcmp(subopt_num, "SUBOPTION2") == 0) {
+                if (!verifyBufferSpace(length, opt_len, 2)) {
+                    fclose(fp);
+                    return -1;
+                }
+                opt_len += sprintf(options + opt_len, "02");
+            }
+            else if (strcmp(subopt_num, "SUBOPTION3") == 0) {
+                if (!verifyBufferSpace(length, opt_len, 2)) {
+                    fclose(fp);
+                    return -1;
+                }
+                opt_len += sprintf(options + opt_len, "03");
+            }
+            else {
+                DBG_PRINT( "%s: Invalid suboption\n", __FUNCTION__ );
+                fclose(fp);
+                return -1;
+            }
+
+            //Print the length of the sub-option value
+            if (!verifyBufferSpace(length, opt_len, 2)) {
+                fclose(fp);
+                return -1;
+            }
+            opt_len += sprintf(options + opt_len, "%02x", strlen(subopt_value));
+
+            //Print the sub-option value in hex
+            opt_len = writeTOHexFromAscii(options, length, opt_len, subopt_value);
+            if (opt_len == 0) {
+                fclose(fp);
+                return -1;
+            }
+        } //while
+
+        fclose(fp);
+
+        if ((num_read != EOF) && (num_read != 3)) {
+            DBG_PRINT("%s: Error parsing file\n", __FUNCTION__);
+            return -1;
+        }
+    }
+    else {
+        DBG_PRINT("%s: Cannot read %s\n", __FUNCTION__, VENDOR_SPEC_FILE);
+        return -1;
+    }
+
+    /*
+       Sub-option code 4 - serial number
+    */
+    if (platform_hal_GetSerialNumber (buf) == RETURN_OK)
+    {
+        subopt = 4;
+        len = strlen (buf);
+        if (len > 0)
+        {
+            if ((len > 0xFF) || !verifyBufferSpace(length, opt_len, 2 + 2 + (2 * len))) {
+                return -1;
+            }
+            opt_len += sprintf(options + opt_len, "%02x%02x", subopt, len);
+            opt_len = writeTOHexFromAscii(options, length, opt_len, buf);
+        }
+    }
+
+    /*
+       Sub-option code 5 - Hardware version
+    */
+    if (platform_hal_GetHardwareVersion (buf) == RETURN_OK)
+    {
+        subopt = 5;
+        len = strlen (buf);
+        if (len > 0)
+        {
+            if ((len > 0xFF) || !verifyBufferSpace(length, opt_len, 2 + 2 + (2 * len))) {
+                return -1;
+            }
+            opt_len += sprintf(options + opt_len, "%02x%02x", subopt, len);
+            opt_len = writeTOHexFromAscii(options, length, opt_len, buf);
+        }
+    }
+
+    /*
+       Sub-option code 6 - Software version (must match SW version field in SNMP MIB object sysDescr)
+    */
+    if (platform_hal_GetSoftwareVersion (buf, sizeof(buf)) == RETURN_OK)
+    {
+        subopt = 6;
+        len = strlen (buf);
+        if (len > 0)
+        {
+            if ((len > 0xFF) || !verifyBufferSpace(length, opt_len, 2 + 2 + (2 * len))) {
+                return -1;
+            }
+            opt_len += sprintf(options + opt_len, "%02x%02x", subopt, len);
+            opt_len = writeTOHexFromAscii(options, length, opt_len, buf);
+        }
+    }
+
+    /*
+       Sub-option code 7 - Boot ROM version (aka Bootloader version)
+    */
+    if (platform_hal_GetBootloaderVersion (buf, sizeof(buf)) == RETURN_OK)
+    {
+        subopt = 7;
+        len = strlen (buf);
+        if (len > 0)
+        {
+            if ((len > 0xFF) || !verifyBufferSpace(length, opt_len, 2 + 2 + (2 * len))) {
+                return -1;
+            }
+            opt_len += sprintf(options + opt_len, "%02x%02x", subopt, len);
+            opt_len = writeTOHexFromAscii(options, length, opt_len, buf);
+        }
+    }
+
+    /*
+       Sub-option code 8 - OUI
+    */
+    subopt = 8;
+    len = strlen (CONFIG_VENDOR_ID);
+    if (len > 0)
+    {
+        if ((len > 0xFF) || !verifyBufferSpace(length, opt_len, 2 + 2 + (2 * len))) {
+            return -1;
+        }
+        opt_len += sprintf(options + opt_len, "%02x%02x", subopt, len);
+        opt_len = writeTOHexFromAscii(options, length, opt_len, CONFIG_VENDOR_ID);
+    }
+
+    /*
+       Sub-option code 9 - Model Number
+    */
+    if (platform_hal_GetModelName(buf) == RETURN_OK)
+    {
+        subopt = 9;
+        len = strlen (buf);
+        if (len > 0)
+        {
+            if ((len > 0xFF) || !verifyBufferSpace(length, opt_len, 2 + 2 + (2 * len))) {
+              return -1;
+        }
+            opt_len += sprintf(options + opt_len, "%02x%02x", subopt, len);
+            opt_len = writeTOHexFromAscii(options, length, opt_len, buf);
+        }
+    }
+
+    /*
+       Sub-option code 10 - Vendor Name
+    */
+    subopt = 10;
+    len = strlen (CONFIG_VENDOR_NAME);
+    if (len > 0)
+    {
+        if ((len > 0xFF) || !verifyBufferSpace(length, opt_len, 2 + 2 + (2 * len))) {
+            return -1;
+        }
+        opt_len += sprintf(options + opt_len, "%02x%02x", subopt, len);
+        opt_len = writeTOHexFromAscii(options, length, opt_len, CONFIG_VENDOR_NAME);
+    }
+
+    /*
+       Sub-option code 15 - device eSAFE with cfg file encapsulation
+    */
+    subopt = 15;
+    len = strlen ("EROUTER");
+    if (len > 0)
+    {
+        if ((len > 0xFF) || !verifyBufferSpace(length, opt_len, 2 + 2 + (2 * len))) {
+            return -1;
+        }
+        opt_len += sprintf(options + opt_len, "%02x%02x", subopt, len);
+        opt_len = writeTOHexFromAscii(options, length, opt_len, "EROUTER");
+    }
+
+    return 0;
+}
 
 /*
  * add_dhcpv4_opt_to_list ()
@@ -57,7 +336,20 @@ static int add_dhcpv4_opt_to_list (dhcp_opt_list ** opt_list, int opt, char * op
     }
     memset (new_dhcp_opt, 0, sizeof(dhcp_opt_list));
     new_dhcp_opt->dhcp_opt = opt;
-    new_dhcp_opt->dhcp_opt_val = opt_val;
+
+    if (opt_val)
+    {
+        new_dhcp_opt->dhcp_opt_val = strdup(opt_val);
+        if (new_dhcp_opt->dhcp_opt_val == NULL)
+        {
+            free(new_dhcp_opt);
+            return RETURN_ERR;
+        }
+    }
+    else
+    {
+        new_dhcp_opt->dhcp_opt_val = NULL;
+    }
 
     if (*opt_list != NULL)
     {
@@ -92,8 +384,21 @@ static int get_dhcpv4_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** 
     {
         if (strcmp(wanoe_enable, "true") == 0)
         {
+            char wanmg_enable[8];
+
             add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_122, NULL);
-            add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_125, NULL);
+            add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_125, NULL);
+            add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_43, NULL);
+
+            syscfg_get(NULL, "management_wan_enabled", wanmg_enable, sizeof(wanmg_enable));
+            if (strcmp(wanmg_enable, "1") != 0)
+            {
+                char options[VENDOR_OPTIONS_LENGTH];
+
+                add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_60, "dslforum.org");
+                prepare_dhcp43_optvalue(options, sizeof(options), "true");
+                add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_43, options);
+            }
         }
     }
     else
