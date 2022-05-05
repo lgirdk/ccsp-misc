@@ -126,14 +126,18 @@ static int udhcpc_get_send_options (char * buff, dhcp_opt_list * send_opt_list)
         return SUCCESS;
     }
 
-    char args [BUFLEN_128] = {0};
+    char args [BUFLEN_512] = {0};
     while ((send_opt_list != NULL) && (send_opt_list->dhcp_opt_val != NULL))
     {
-        memset (&args, 0, BUFLEN_128);
+        memset (&args, 0, BUFLEN_512);
         if (send_opt_list->dhcp_opt == DHCPV4_OPT_60)
         {
             // Option 60 - Vendor Class Identifier has udhcp cmd line arg "-V <option-str>"
             snprintf (args, BUFLEN_128, "-V \"%s\" ", send_opt_list->dhcp_opt_val);
+        }
+        else if ( send_opt_list->dhcp_opt == DHCPV4_OPT_43)
+        {
+            snprintf(args, BUFLEN_512, "-x %d:%s ", send_opt_list->dhcp_opt, send_opt_list->dhcp_opt_val);
         }
         else
         {
@@ -226,7 +230,7 @@ pid_t start_udhcpc (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_opt
         return FAILURE;
     }
 
-    char buff [BUFLEN_512] = {0};
+    char buff [BUFLEN_1024] = {0};
 
     DBG_PRINT("%s %d: Constructing REQUEST option args to udhcpc.\n", __FUNCTION__, __LINE__);
     if ((req_opt_list != NULL) && (udhcpc_get_req_options(buff, req_opt_list)) != SUCCESS)
