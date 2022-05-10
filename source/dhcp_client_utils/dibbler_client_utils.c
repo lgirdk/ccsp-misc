@@ -33,7 +33,7 @@ extern int dhcp_sysevent_fd;
  * @return     : returns a pid of runnning dibbler-client
  *
  */
-static pid_t return_dibbler_pid ()
+static pid_t return_dibbler_pid (void)
 {
     pid_t pid = 0;
     FILE * pidfile_fd = NULL;
@@ -47,6 +47,7 @@ static pid_t return_dibbler_pid ()
     }
 
     fscanf(pidfile_fd, "%d", &pid);
+    fclose(pidfile_fd);
 
     DBG_PRINT("%s %d: pid of dibbler is %d.\n", __FUNCTION__, __LINE__, pid);
     return pid;

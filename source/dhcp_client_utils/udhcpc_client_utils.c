@@ -25,7 +25,6 @@
 
 static pid_t return_udhcpc_pid (dhcp_params * params)
 {
-
     pid_t pid = 0;
 
     if ((params == NULL) || (params->ifname == NULL))
@@ -47,10 +46,10 @@ static pid_t return_udhcpc_pid (dhcp_params * params)
     }
 
     fscanf(pidfile_fd, "%d\n", &pid);
+    fclose(pidfile_fd);
 
     DBG_PRINT("%s %d: pid of udhcpc is %d.\n", __FUNCTION__, __LINE__, pid);
     return pid;
-
 }
 
 /*
