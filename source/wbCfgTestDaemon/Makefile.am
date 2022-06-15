@@ -16,9 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-
 AM_CFLAGS =
-AM_CFLAGS += -DCCSP_INC_no_asm_sigcontext_h
 
 bin_PROGRAMS = wbCfgTestDaemon
 
