@@ -329,38 +329,13 @@ int stop_udhcpc (dhcp_params * params)
         return FAILURE;
     }
 
-#ifdef UDHCPC_TX_RELEASE_ON_EXIT
-#if defined(_PLATFORM_RASPBERRYPI_)
-    //In RPI, udhcpc is not getting terminated after sending unicast release packet with SIGUSR2, thus SIGTERM is used
-    if (signal_process(pid, SIGTERM) != RETURN_OK)
-#else
-    if (signal_process(pid, (params->is_release_required)?(SIGUSR2):(SIGTERM)) != RETURN_OK)
-#endif
-    {
-        DBG_PRINT("%s %d: unable to send signal to pid %d\n", __FUNCTION__, __LINE__, pid);
-        return FAILURE;
-    }
-#else
-    /*TODO:
-     *Should be Removed once MAPT Unified and done in udhcp Demon to relase and kill Demon on SIGUSR2.
-     */
-    if (params->is_release_required)
-    {
-        if (signal_process(pid, SIGUSR2) != RETURN_OK)
-        {
-            DBG_PRINT("%s %d: unable to send signal to pid %d\n", __FUNCTION__, __LINE__, pid);
-            return FAILURE;
-        }
-        DBG_PRINT("%s %d: Successfully Relased V4 IP Address %d\n", __FUNCTION__, __LINE__, pid);
-    }
-    sleep(1);
+    /* Fixme... */
+
     if (signal_process(pid, SIGTERM) != RETURN_OK)
     {
         DBG_PRINT("%s %d: unable to send signal to pid %d\n", __FUNCTION__, __LINE__, pid);
         return FAILURE;
     }
-    DBG_PRINT("%s %d: Successfully Exited V4 Demon %d\n", __FUNCTION__, __LINE__, pid);
-#endif  // UDHCPC_TX_RELEASE_ON_EXIT 
 
     return collect_waiting_process(pid, UDHCPC_TERMINATE_TIMEOUT);
 
