@@ -301,13 +301,14 @@ int stop_udhcpc (dhcp_params * params)
         return FAILURE;
     }
 
-    if (signal_process(pid, (params->is_release_required)?(SIGUSR2):(SIGTERM)) != RETURN_OK)
+    if (signal_process(pid, SIGKILL) != RETURN_OK)
     {
         DBG_PRINT("%s %d: unable to send signal to pid %d\n", __FUNCTION__, __LINE__, pid);
         return FAILURE;
     }
+    DBG_PRINT("%s %d: Sent SIGKILL signal to pid %d\n", __FUNCTION__, __LINE__, pid);
 
-    return collect_waiting_process(pid, UDHCPC_TERMINATE_TIMEOUT);
+    return SUCCESS;
 
 }
 #endif  // DHCPV4_CLIENT_UDHCPC
