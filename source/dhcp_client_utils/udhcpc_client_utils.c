@@ -254,7 +254,16 @@ pid_t start_udhcpc (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_opt
 
     DBG_PRINT("%s %d: Starting udhcpc.\n", __FUNCTION__, __LINE__);
 
-    return start_exe(UDHCPC_CLIENT_PATH, buff);
+    pid_t ret = start_exe(UDHCPC_CLIENT_PATH, buff);
+
+    //udhcpc will demonize a child thread during start, so we need to collect the exited main thread
+    if (collect_waiting_process(ret, UDHCPC_TERMINATE_TIMEOUT) != SUCCESS)
+    {
+        DBG_PRINT("%s %d: unable to collect pid for %d.\n", __FUNCTION__, __LINE__, ret);
+    }
+    DBG_PRINT("%s %d: Started udhcpc. returning pid..\n", __FUNCTION__, __LINE__);
+
+    return get_process_pid (UDHCPC_CLIENT, NULL);
 
 }
 
@@ -285,13 +294,14 @@ int stop_udhcpc (dhcp_params * params)
         return FAILURE;
     }
 
-    if (signal_process(pid, SIGUSR2) != RETURN_OK)
+    if (signal_process(pid, SIGKILL) != RETURN_OK)
     {
         DBG_PRINT("%s %d: unable to send signal to pid %d\n", __FUNCTION__, __LINE__, pid);
         return FAILURE;
     }
+    DBG_PRINT("%s %d: Sent SIGKILL signal to pid %d\n", __FUNCTION__, __LINE__, pid);
 
-    return collect_waiting_process(pid, UDHCPC_TERMINATE_TIMEOUT);
+    return SUCCESS;
 
 }
 #endif  // DHCPV4_CLIENT_UDHCPC
