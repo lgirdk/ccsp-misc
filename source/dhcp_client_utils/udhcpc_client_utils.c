@@ -283,10 +283,8 @@ int stop_udhcpc (dhcp_params * params)
     }
 
     pid_t pid = 0;
-    char cmdarg[BUFLEN_32] = {0};
 
-    snprintf(cmdarg, sizeof(cmdarg), "%s", params->ifname);
-    pid = get_process_pid(UDHCPC_CLIENT, cmdarg);
+    pid = get_process_pid(UDHCPC_CLIENT, NULL);
 
     if (pid <= 0)
     {
