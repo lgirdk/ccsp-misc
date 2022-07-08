@@ -33,6 +33,7 @@ extern token_t dhcp_sysevent_token;
 extern int dhcp_sysevent_fd;
 
 
+#if 0
 static int copy_file (char * src, char * dst)
 {
     if ((src == NULL) || (dst == NULL))
@@ -314,6 +315,7 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
     return SUCCESS;
 
 }
+#endif
 
 /*
  * start_dibbler ()
@@ -333,6 +335,7 @@ pid_t start_dibbler (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_op
         return FAILURE;
     }
 
+#if 0
     dibbler_client_info client_info;
 
     memset (&client_info, 0, sizeof(dibbler_client_info));
@@ -345,11 +348,12 @@ pid_t start_dibbler (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_op
         DBG_PRINT("%s %d: Unable to get DHCPv6 REQ OPT.\n", __FUNCTION__, __LINE__);
         return FAILURE;
     }
+#endif
 
-    DBG_PRINT("%s %d: Starting dibbler with config %s\n", __FUNCTION__, __LINE__, client_info.config_path);
+    DBG_PRINT("%s %d: Starting dibbler\n", __FUNCTION__, __LINE__);
     
     char cmd_args[BUFLEN_256];
-    snprintf(cmd_args, sizeof(cmd_args), "%s -w %s", DIBBLER_CLIENT_RUN_CMD, client_info.config_path);
+    snprintf(cmd_args, sizeof(cmd_args), "%s", DIBBLER_CLIENT_RUN_CMD);
 
     pid_t ret = start_exe(DIBBLER_CLIENT_PATH, cmd_args);
     if (ret <= 0)
