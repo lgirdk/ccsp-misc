@@ -33,6 +33,7 @@ extern token_t dhcp_sysevent_token;
 extern int dhcp_sysevent_fd;
 
 
+#if 0
 static int copy_file (char * src, char * dst)
 {
     if ((src == NULL) || (dst == NULL))
@@ -330,6 +331,7 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
     return SUCCESS;
 
 }
+#endif
 
 /*
  * start_dibbler ()
@@ -356,11 +358,13 @@ pid_t start_dibbler (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_op
     client_info.req_opt_list = req_opt_list;
     client_info.send_opt_list = send_opt_list;
 
+#if 0
     if ((dibbler_client_prepare_config(&client_info) != SUCCESS))
     {
         DBG_PRINT("%s %d: Unable to get DHCPv6 REQ OPT.\n", __FUNCTION__, __LINE__);
         return FAILURE;
     }
+#endif
 
     DBG_PRINT("%s %d: Starting dibbler with config %s\n", __FUNCTION__, __LINE__, client_info.config_path);
     
