@@ -394,10 +394,8 @@ int stop_dibbler (dhcp_params * params)
     }
 
     pid_t pid = 0;
-    char cmdarg[BUFLEN_32] = {0};
 
-    snprintf(cmdarg, sizeof(cmdarg), "%s%s", DIBBLER_DFT_PATH, params->ifname);
-    pid = get_process_pid(DIBBLER_CLIENT, cmdarg);
+    pid = get_process_pid(DIBBLER_CLIENT, NULL);
 
     if (pid <= 0)
     {
