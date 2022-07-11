@@ -381,13 +381,20 @@ static int get_dhcpv4_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** 
     {
         if (strcmp(wanoe_enable, "true") == 0)
         {
-            char options[VENDOR_OPTIONS_LENGTH];
+            char wanmg_enable[8];
+
             add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_122, NULL);
-            add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_60, "dslforum.org");
             add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_125, NULL);
-            //add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_43, NULL); As per requirement option 43 should not be in the requested list.
-            prepare_dhcp43_optvalue(options, sizeof(options), wanoe_enable);
-            add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_43, options);
+
+            syscfg_get(NULL, "management_wan_enabled", wanmg_enable, sizeof(wanmg_enable));
+            if (strcmp(wanmg_enable, "1") != 0)
+            {
+                char options[VENDOR_OPTIONS_LENGTH];
+
+                add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_60, "dslforum.org");
+                prepare_dhcp43_optvalue(options, sizeof(options), "true");
+                add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_43, options);
+            }
         }
     }
     else
