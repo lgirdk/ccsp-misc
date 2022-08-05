@@ -385,6 +385,7 @@ static int get_dhcpv4_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** 
 
             add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_122, NULL);
             add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_125, NULL);
+            add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_43, NULL);
 
             syscfg_get(NULL, "management_wan_enabled", wanmg_enable, sizeof(wanmg_enable));
             if (strcmp(wanmg_enable, "1") != 0)
