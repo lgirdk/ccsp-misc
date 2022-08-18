@@ -22,6 +22,7 @@
 #include <syscfg/syscfg.h>
 #include <string.h>
 
+#define DUID "3561"
 #define VENDOR_SPEC_FILE "/etc/udhcpc.vendor_specific"
 #define VENDOR_OPTIONS_LENGTH 512
 
@@ -94,6 +95,44 @@ static int writeTOHexFromAscii(char *options, const int length, int opt_len, cha
     return opt_len;
 }
 
+static int prepare_dhcp61_optvalue(char *options, const int length)
+{
+    char basemac[18], modelName[32], SerialNo[64], IAID[9], buf[256];
+    int opt_len = 0;
+
+    opt_len = sprintf(options, "00"); //add type, for now 00
+
+    if(platform_hal_GetBaseMacAddress(basemac) == RETURN_OK)
+    {
+        IAID[0] = basemac[6];
+        IAID[1] = basemac[7];
+        IAID[2] = basemac[9];
+        IAID[3] = basemac[10];
+        IAID[4] = basemac[12];
+        IAID[5] = basemac[13];
+        IAID[6] = basemac[15];
+        IAID[7] = basemac[16];
+    }
+
+    //Identifier in format <OUI>"-"<ProductClass>"-"<CPE_LogisticsSerialNumber>
+
+    if(platform_hal_GetProductClass(modelName) != RETURN_OK)  //Product class is MERCV3X
+    {
+        DBG_PRINT("Failed to get ModelName \n");
+        return -1;
+    }
+
+    if(platform_hal_GetSerialNumber(SerialNo) != RETURN_OK) //Serial Number
+    {
+        DBG_PRINT("Failed to get SerialNumber \n");
+        return -1;
+    }
+
+    snprintf(buf, sizeof(buf),"%s%s%s-%s-%s",IAID,DUID,CONFIG_VENDOR_ID,modelName,SerialNo);
+    opt_len = writeTOHexFromAscii(options, length, opt_len, buf);
+
+    return 0;
+}
 /*
    Warning: This function should be kept aligned with dhcp_parse_vendor_info() in utopia/source/service_wan/service_wan.c
 */
@@ -394,7 +433,14 @@ static int get_dhcpv4_opt_list (dhcp_params * params, dhcp_opt_list ** req_opt_l
             if (strcmp(wanmg_enable, "1") != 0)
             {
                 char options[VENDOR_OPTIONS_LENGTH];
-
+                if (!prepare_dhcp61_optvalue(options, sizeof(options)))
+                {
+                    add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_61, options);
+                }
+                else
+                {
+                    DBG_PRINT("Failed to get OPTION 61 \n");
+                }
                 add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_60, "dslforum.org");
                 prepare_dhcp43_optvalue(options, sizeof(options), "true");
                 add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_43, options);
