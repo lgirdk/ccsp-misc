@@ -116,7 +116,7 @@ static int prepare_dhcp61_optvalue(char *options, const int length)
 
     //Identifier in format <OUI>"-"<ProductClass>"-"<CPE_LogisticsSerialNumber>
 
-    if(platform_hal_GetModelName(modelName) != RETURN_OK)  //Product class is MERCV3X
+    if(platform_hal_GetProductClass(modelName) != RETURN_OK)  //Product class is MERCV3X
     {
         DBG_PRINT("Failed to get ModelName \n");
         return -1;
