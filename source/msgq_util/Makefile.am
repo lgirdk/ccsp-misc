@@ -21,4 +21,4 @@ bin_PROGRAMS = msgq_util
 
 msgq_util_SOURCES = msgq_util.c
 
-msgq_util_LDFLAGS = -lsecure_wrapper -lrt 
+msgq_util_LDFLAGS = -lsecure_wrapper -lrt
