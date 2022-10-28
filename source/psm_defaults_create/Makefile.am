@@ -17,4 +17,4 @@
 
 bin_PROGRAMS = psm_defaults_create
 psm_defaults_create_SOURCES = psm_defaults_create.c
-psm_defaults_create_LDADD = -lrdklist -lsyscfg
+psm_defaults_create_LDADD = -lrdklist -lsyscfg -lsecure_wrapper
