@@ -27,6 +27,7 @@
 
 #include <syscfg/syscfg.h>
 #include <rdk_linkedlist.h>
+#include <secure_wrapper.h>
 
 /****************************************************************************/
 /*                          DEFINES:                                        */
@@ -368,6 +369,8 @@ int main (int argc, char **argv)
 #if defined (FREE_MEMORY_BEFORE_EXIT)
     clearAllNodes(&node_head);
 #endif
+
+    v_secure_system("/usr/ccsp/psm/lg_bbhm_patch.sh /tmp/lg_bbhm_def_cfg.xml");
 
     return rc;
 }
