@@ -118,7 +118,7 @@ static int udhcpc_get_send_options (char * buff, size_t buff_size, dhcp_opt_list
             // Option 60 - Vendor Class Identifier has udhcp cmd line arg "-V <option-str>"
             snprintf (args, sizeof(args), "-V %s ", send_opt_list->dhcp_opt_val);
         }
-        else if (send_opt_list->dhcp_opt == DHCPV4_OPT_43)
+        else if (send_opt_list->dhcp_opt == DHCPV4_OPT_125)
         {
             snprintf(args, sizeof(args), "-x %d:%s ", send_opt_list->dhcp_opt, send_opt_list->dhcp_opt_val);
         }
