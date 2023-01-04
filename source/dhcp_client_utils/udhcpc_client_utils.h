@@ -22,6 +22,7 @@
 #define UDHCP_PIDFILE                    "/tmp/udhcpc.%s.pid"
 #define UDHCPC_SERVICE_SCRIPT_FILE       "/etc/udhcpc.script"
 #define UDHCPC_SERVICE_EXE               "/usr/bin/service_udhcpc"
+#define UDHCPC_MVLAN_SERVICE             "/etc/udhcpc_vlan.script"
 #define UDHCP_PIDFILE_PATTERN            "-p "UDHCP_PIDFILE" "
 #define UDHCPC_TERMINATE_TIMEOUT         0
 
