@@ -207,7 +207,7 @@ static int prepare_dhcp125_optvalue(char *options_125, const int length)
     return 0;
 }
 
-static int prepare_dhcp61_optvalue(char *options, const int length)
+static int prepare_dhcp61_optvalue(char *options, const int length, dhcp_params * params)
 {
     char basemac[18], ProductClass[32], SerialNo[64], IAID[9], buf[256];
     int type = 255;
@@ -225,7 +225,18 @@ static int prepare_dhcp61_optvalue(char *options, const int length)
         IAID[4] = basemac[12];
         IAID[5] = basemac[13];
         IAID[6] = basemac[15];
-        IAID[7] = basemac[16];
+        if (strcmp(params->ifname, "erouter0") == 0)
+        {
+            IAID[7] = basemac[16];
+        }
+        else if(strcmp(params->ifname, "mg0") == 0)
+        {
+            IAID[7] = basemac[16]+5;
+        }
+        else 
+        {
+            IAID[7] = basemac[16]+4;
+        }
         IAID[8] = 0;
     }
 
@@ -308,7 +319,7 @@ static int add_dhcpv4_opt_to_list (dhcp_opt_list ** opt_list, int opt, char * op
  * @return     : returns the SUCCESS on successful fetching of DHCP options, else returns failure
  *
  */
-static int get_dhcpv4_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** send_opt_list)
+static int get_dhcpv4_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** send_opt_list, dhcp_params * params)
 {
     char wanoe_enable[BUFLEN_16] = {0};
 
@@ -328,29 +339,46 @@ static int get_dhcpv4_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** 
             add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_122, NULL);
             add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_43, NULL);
 
-            syscfg_get(NULL, "management_wan_enabled", wanmg_enable, sizeof(wanmg_enable));
-            if (strcmp(wanmg_enable, "1") != 0)
+            char options[VENDOR_OPTIONS_LENGTH];
+            if (!prepare_dhcp61_optvalue(options, sizeof(options), params))
             {
-                char options[VENDOR_OPTIONS_LENGTH];
-                if (!prepare_dhcp61_optvalue(options, sizeof(options)))
-                {
-                    add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_61, options);
-                }
-                else
-                {
-                    DBG_PRINT("Failed to get OPTION 61 \n");
-                }
-
-                if (!prepare_dhcp125_optvalue(options, sizeof(options)))
-                {
-                    add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_125, options);
-                }
-                else
-                {
-                    DBG_PRINT("Failed to get OPTION 125 \n");
-                }
-                add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_60, "dslforum.org");
+                 add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_61, options);
             }
+            else
+            {
+                 DBG_PRINT("Failed to get OPTION 61 \n");
+            }
+
+            if (!prepare_dhcp125_optvalue(options, sizeof(options)))
+            {
+                 add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_125, options);
+            }
+            else
+            {
+                 DBG_PRINT("Failed to get OPTION 125 \n");
+            }
+
+            if (strcmp(params->ifname, "erouter0") == 0)
+            {
+                 syscfg_get(NULL, "management_wan_enabled", wanmg_enable, sizeof(wanmg_enable));
+                 if (strcmp(wanmg_enable, "1") != 0)
+                 {
+                     sprintf(options,"dslforum.org");
+                 }
+                 else
+                 {
+                     sprintf(options,"bb.data");
+                 }
+            }
+            else if (strcmp(params->ifname, "mg0") == 0)
+            {
+                 sprintf(options,"dslforum.org");
+            }
+            else
+            {
+                 sprintf(options,"bb.voice");
+            }
+            add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_60, options);
         }
     }
     else
@@ -392,7 +420,7 @@ pid_t start_dhcpv4_client (dhcp_params * params)
     dhcp_opt_list * send_opt_list = NULL;
 
     DBG_PRINT("%s %d: Collecting DHCP GET/SEND Request\n", __FUNCTION__, __LINE__);
-    if (get_dhcpv4_opt_list(&req_opt_list, &send_opt_list) == FAILURE)
+    if (get_dhcpv4_opt_list(&req_opt_list, &send_opt_list, params) == FAILURE)
     {
         DBG_PRINT("%s %d: failed to get option list from platform hal\n", __FUNCTION__, __LINE__);
         return pid;
