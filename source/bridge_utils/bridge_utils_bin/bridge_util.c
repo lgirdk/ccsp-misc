@@ -29,6 +29,7 @@
 #endif
 #define ONEWIFI_ENABLED "/etc/onewifi_enabled"
 #define OPENVSWITCH_LOADED "/sys/module/openvswitch"
+#define WFO_ENABLED        "/etc/WFO_enabled"
 
 static char *component_id = "ccsp.bridgeUtils";
 static char *pCfg 	= CCSP_MSG_BUS_CFG;
@@ -2428,10 +2429,11 @@ void getSettings()
         	bridge_util_log("syscfg_get failed to retrieve ovs_enable\n");
 
         }
-        if( (0 == access( ONEWIFI_ENABLED, F_OK )) || (0 == access( OPENVSWITCH_LOADED, F_OK )) )
+        if( (0 == access( ONEWIFI_ENABLED, F_OK )) || (0 == access( OPENVSWITCH_LOADED, F_OK ))
+                                                   || (access(WFO_ENABLED, F_OK) == 0 ) )
         {
             ovsEnable = 1;
-            bridge_util_log("setting ovsEnable to true for onewifi build\n");
+            bridge_util_log("setting ovsEnable to true for onewifi/WFO build\n");
         }
 
         memset(buf,0,sizeof(buf));
