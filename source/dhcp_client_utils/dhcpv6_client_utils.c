@@ -102,7 +102,7 @@ pid_t start_dhcpv6_client (dhcp_params * params)
     }
 
     pid_t pid = 0;
-    pid = get_process_pid(DIBBLER_CLIENT, params->ifname);
+    pid = get_process_pid(DIBBLER_CLIENT, params->ifname, false);
     if (pid > 0)
     {
         DBG_PRINT("%s %d: another instance of %s running on %s \n", __FUNCTION__, __LINE__, DIBBLER_CLIENT, params->ifname);

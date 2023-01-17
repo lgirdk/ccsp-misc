@@ -315,10 +315,11 @@ static int check_proc_entry_for_pid (char * name, char * args)
  * @params     : name - name of the exeutable file eg:udhcpc
                  args - args can be argument for the program 
                     eg:"-ierouter0" for udhcpc - format as seen in /proc fs
+                 waitForProcEntry - Wait for proc entry.
  * @return     : if executable is running, returns its pid, else return 0
  *
  */
-pid_t get_process_pid (char * name, char * args)
+pid_t get_process_pid (char * name, char * args, bool waitForProcEntry)
 {
     if (name == NULL)
     {
@@ -326,21 +327,28 @@ pid_t get_process_pid (char * name, char * args)
         return 0;
     }
 
-    int waitTime = RETURN_PID_TIMEOUT_IN_MSEC;
     int pid = 0;
-    
-    while (waitTime > 1)
+    if(waitForProcEntry)
+    {    
+        int waitTime = RETURN_PID_TIMEOUT_IN_MSEC;
+
+        while (waitTime > 1)
+        {
+            pid = check_proc_entry_for_pid(name, args);
+
+            if (pid != 0)
+            {
+                break; 
+            }
+
+            usleep(RETURN_PID_INTERVAL_IN_MSEC * USECS_IN_MSEC);
+            waitTime -= RETURN_PID_INTERVAL_IN_MSEC;
+
+        }
+    }
+    else
     {
         pid = check_proc_entry_for_pid(name, args);
-        
-        if (pid != 0)
-        {
-           break; 
-        }
-
-        usleep(RETURN_PID_INTERVAL_IN_MSEC * USECS_IN_MSEC);
-        waitTime -= RETURN_PID_INTERVAL_IN_MSEC;
-
     }
 
     DBG_PRINT("%s %d: %s running, in pid %d\n", __FUNCTION__, __LINE__, name, pid);

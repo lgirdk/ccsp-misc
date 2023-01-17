@@ -224,7 +224,7 @@ pid_t start_udhcpc (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_opt
     }
 
     pid_t pid = 0;
-    pid = get_process_pid(UDHCPC_CLIENT, params->ifname);
+    pid = get_process_pid(UDHCPC_CLIENT, params->ifname, false);
 
     if (pid > 0)
     {
@@ -280,7 +280,7 @@ int stop_udhcpc (dhcp_params * params)
     char cmdarg[BUFLEN_32] = {0};
 
     snprintf(cmdarg, sizeof(cmdarg), "%s", params->ifname);
-    pid = get_process_pid(UDHCPC_CLIENT, cmdarg);
+    pid = get_process_pid(UDHCPC_CLIENT, cmdarg, false);
 
     if (pid <= 0)
     {
