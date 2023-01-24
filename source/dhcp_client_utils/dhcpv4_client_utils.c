@@ -77,7 +77,7 @@ static int add_dhcpv4_opt_to_list (dhcp_opt_list ** opt_list, int opt, char * op
  * @return     : returns the SUCCESS on successful fetching of DHCP options, else returns failure
  *
  */
-static int get_dhcpv4_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** send_opt_list)
+static int get_dhcpv4_opt_list (dhcp_params * params, dhcp_opt_list ** req_opt_list, dhcp_opt_list ** send_opt_list)
 {
     char wanoe_enable[BUFLEN_16] = {0};
 
@@ -99,6 +99,12 @@ static int get_dhcpv4_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** 
     else
     {
         DBG_PRINT("Failed to get eth_wan_enabled \n");
+    }
+
+    if ((params->opt & DHCPV4_OPT_43) == DHCPV4_OPT_43)
+    {
+        DBG_PRINT("%s %d: Adding Option 43 \n", __FUNCTION__, __LINE__);
+        add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_43, NULL);
     }
 
     if (platform_hal_GetDhcpv4_Options(req_opt_list, send_opt_list) == FAILURE)
@@ -135,7 +141,7 @@ pid_t start_dhcpv4_client (dhcp_params * params)
     dhcp_opt_list * send_opt_list = NULL;
 
     DBG_PRINT("%s %d: Collecting DHCP GET/SEND Request\n", __FUNCTION__, __LINE__);
-    if (get_dhcpv4_opt_list(&req_opt_list, &send_opt_list) == FAILURE)
+    if (get_dhcpv4_opt_list(params, &req_opt_list, &send_opt_list) == FAILURE)
     {
         DBG_PRINT("%s %d: failed to get option list from platform hal\n", __FUNCTION__, __LINE__);
         return pid;
