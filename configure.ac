@@ -117,6 +117,7 @@ AC_CONFIG_FILES(
 	source/Makefile
 	source/dhcp_client_utils/Makefile
 	source/msgq_util/Makefile
+        source/gfo_diag/Makefile
 	Makefile
 )
 
