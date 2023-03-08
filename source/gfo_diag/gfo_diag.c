@@ -916,11 +916,11 @@ int CallbackEvent(const char *pParamName, char *pValue)
                 { 
                     ts.xbHeartbeatFail = seconds;
                     logStatus("PRIMARY_GW_UNREACHABLE: %15ld seconds", (seconds - ts.staConnTimeFailed) );
-
+                    
                     //Check LTE is DOWN
-                    if(!getParameterValue(WAN_ENABLE,buf,&rmRetType))
+                    if(!getParameterValue(WANMGR_PARAM_NAME_INTERFACE_ACTIVESTATUS,buf,&rmRetType))
                     {
-                        if(strcmp(buf,"false")== 0)   
+                        if(strstr(buf,"LTE,0"))   
                         {
                             lteDown = 1;
                         }
