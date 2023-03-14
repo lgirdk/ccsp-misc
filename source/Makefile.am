@@ -36,7 +36,7 @@ if BRIDGE_UTILS_BIN_ENABLE
 BRIDGE_UTIL = bridge_utils
 endif
 
-SUBDIRS = Psmcli parcon LTime TimeConv webcfg_decoder MemFrag_Calc $(SETLED) $(MULTIPART_UTIL) $(BRIDGE_UTIL) $(WBCFG_TEST) dhcp_client_utils msgq_util EventSubscription gfo_diag FwBankInfo
+SUBDIRS = Psmcli parcon LTime TimeConv webcfg_decoder MemFrag_Calc $(SETLED) $(MULTIPART_UTIL) $(BRIDGE_UTIL) $(WBCFG_TEST) dhcp_client_utils msgq_util EventSubscription FwBankInfo
 
 if WITH_GTEST_SUPPORT
 SUBDIRS += test
