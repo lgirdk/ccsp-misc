@@ -47,6 +47,9 @@ const char * docname = NULL;
 const char * authfile = NULL;
 const char *interface = NULL;
 static bool docflag = false;
+static rbusHandle_t handle;
+static char *supportedDocs_header =  NULL;
+static char *supportedVersion_header=NULL;
 static int readBinFromFile(const char *filename, char **data, size_t *len);
 
 int checkObject(const char * buf, size_t len)
@@ -380,6 +383,28 @@ int getauthtokenfromfile(const char * authfile, char **data)
 	return 1;
 
 }
+
+void rbus_init(const char *pComponentName)
+{
+        int ret = RBUS_ERROR_SUCCESS;
+        printf("rbus_open for component %s\n",pComponentName);
+        ret = rbus_open(&handle, pComponentName);
+        if(ret != RBUS_ERROR_SUCCESS)
+        {
+                printf("rbus_init failed with error code %d\n", ret);
+        }
+        printf("rbus_init is success. ret is %d\n",ret);
+}
+
+void rbus_unint()
+{
+ 	if(handle!=NULL)
+        {
+        	rbus_close(handle);
+        }
+}
+
+
 /* @brief Function to create curl header options
  * @param[in] list temp curl header list
  * @param[in] device status value
@@ -390,6 +415,12 @@ void cli_createCurlHeader( struct curl_slist *list, struct curl_slist **header_l
 	char *version_header = NULL;
 	char *auth_header = NULL;
 	char *authdata = NULL;
+	const char *supportedDocs = NULL;
+	size_t supported_doc_size = 0;
+  	const char *supportedVersion = NULL;
+        size_t supported_version_size = 0;
+	rbusValue_t value = NULL;
+	int rc = RBUS_ERROR_SUCCESS;
 	//printf("Start of createCurlheader\n");
 	//Fetch auth JWT token from cloud.
 
@@ -406,17 +437,95 @@ void cli_createCurlHeader( struct curl_slist *list, struct curl_slist **header_l
 	auth_header = (char *) malloc(sizeof(char)*MAX_HEADER_LEN);
 	if(auth_header !=NULL)
 	{
+        	memset(auth_header, 0, sizeof(char) * MAX_BUF_SIZE);
 		snprintf(auth_header, MAX_HEADER_LEN, "Authorization:Bearer %s", authdata);
 		list = curl_slist_append(list, auth_header);
 		free(auth_header);
 		free(authdata);
                 authdata = NULL;
 	}
+	
+  	if(!handle)
+        {
+                printf("rbus handle error");
+        }
+	else
+        {
+  		rc = rbus_get(handle,"Device.X_RDK_WebConfig.SupportedSchemaVersion",&value);
+  		if(rc == RBUS_ERROR_SUCCESS)
+        	{
+                	printf("Device.X_RDK_WebConfig.SupportedSchemaVersion, The value is = [%s]\n", rbusValue_GetString(value,NULL));
+        	}
+        	else{
+                	printf("Failed to get the value of Device.X_RDK_WebConfig.SupportedSchemaVersion");
+        	}
 
+        	if(supportedVersion_header == NULL)
+        	{
+        		supportedVersion = rbusValue_GetString(value, NULL);
 
+                	if(supportedVersion != NULL)
+                	{
+                        	supported_version_size = strlen(supportedVersion)+strlen("X-System-Schema-Version: ");
+                        	supportedVersion_header = (char *) malloc(supported_version_size+1);
+                       		 memset(supportedVersion_header,0,supported_version_size+1);
+                        	printf("supportedVersion fetched is %s\n", supportedVersion);
+                        	snprintf(supportedVersion_header, supported_version_size+1, "X-System-Schema-Version: %s", supportedVersion);
+                        	printf("supportedVersion_header formed %s\n", supportedVersion_header);
+                        	list = curl_slist_append(list, supportedVersion_header);
+                	}
+                	else
+                	{
+                        	printf("supportedVersion fetched is NULL\n");
+                	}
+        	}
+        	else
+        	{
+                	printf("supportedVersion_header formed %s\n", supportedVersion_header);
+                	list = curl_slist_append(list, supportedVersion_header);
+        	}
+  		rbusValue_Release(value);
+
+  
+		rc = rbus_get(handle,"Device.X_RDK_WebConfig.SupportedDocs",&value);
+		if(rc == RBUS_ERROR_SUCCESS)
+		{
+			printf("Device.X_RDK_WebConfig.SupportedDocs, The value is = [%s]\n", rbusValue_GetString(value,NULL));
+		}
+		else{
+			printf("Failed to get the value of Device.X_RDK_WebConfig.SupportedDocs");
+		}
+
+		if(supportedDocs_header == NULL)
+		{	
+			supportedDocs = rbusValue_GetString(value, NULL);	
+			if(supportedDocs !=NULL)
+			{
+				supported_doc_size = strlen(supportedDocs)+strlen("X-System-Supported-Docs: ");
+				supportedDocs_header = (char *) malloc(supported_doc_size+1);
+				memset(supportedDocs_header,0,supported_doc_size+1);
+				//printf("supportedDocs fetched is %s\n", supportedDocs);
+				snprintf(supportedDocs_header, supported_doc_size+1, "X-System-Supported-Docs: %s", supportedDocs);
+				//printf("supportedDocs_header formed %s\n", supportedDocs_header);
+				list = curl_slist_append(list, supportedDocs_header);
+			}
+			else
+			{
+				printf("SupportedDocs fetched is NULL\n");
+			}
+		}
+		else
+		{
+			printf("supportedDocs_header formed %s\n", supportedDocs_header);
+			list = curl_slist_append(list, supportedDocs_header);
+		}
+  		rbusValue_Release(value);
+        }
+  
 	version_header = (char *) malloc(sizeof(char)*MAX_BUF_SIZE);
 	if(version_header !=NULL)
 	{
+        	memset(version_header, 0, sizeof(char) * MAX_BUF_SIZE);
 		snprintf(version_header, MAX_BUF_SIZE, "IF-NONE-MATCH:%s", versionlist);
 		//printf("version_header formed %s\n", version_header);
 		list = curl_slist_append(list, version_header);
@@ -426,6 +535,34 @@ void cli_createCurlHeader( struct curl_slist *list, struct curl_slist **header_l
 
 	*header_list = list;
 	/* CID :280267 Resource leak (RESOURCE_LEAK) */
+  
+  	//struct curl_slist *temp = list;
+        //while (temp != NULL)
+        //{
+        //        printf("The content inside list is %s\n", temp->data);
+        //        temp = temp->next;
+        //}
+	
+  	struct curl_slist *temp1 = *header_list;
+        char *colan = strchr(temp1->data, ':');
+        if(colan != NULL){
+                size_t length = colan - temp1->data;
+                char *header_name = strndup(temp1->data, length);
+                printf("The content inside header_list is %s\n",header_name);
+                free(header_name);
+        }
+        struct curl_slist *current = (*header_list)->next;
+        while (current != NULL) {
+                printf("The content inside header_list is %s\n", current->data);
+                current = current->next;
+        }
+  
+        //struct curl_slist *temp1 = *header_list;
+        //while (temp1 != NULL) {
+        //        printf("The content inside header_list is %s\n", temp1->data);
+        //        temp1 = temp1->next;
+        //}
+  
 	if(authdata)
         {
 	    free(authdata);
@@ -901,20 +1038,18 @@ void cloudConfig(char **args)
 
 int rbusFetch(char **args)
 {
-	rbusHandle_t handle;
 	rbusObject_t inParams;
 	rbusObject_t outParams;
-	rbusValue_t value;
+	rbusValue_t value = NULL;
 
 	int rc = RBUS_ERROR_SUCCESS;
 
 	char * docname = NULL;
 	docname = strdup(args[2]);
 
-	rc = rbus_open(&handle, "webcfg_decoder");
-	if(rc != RBUS_ERROR_SUCCESS)
+	if(!handle)
 	{
-		printf("rbus_open failed: %d\n", rc);
+		printf("rbus handle error");
 		goto exit1;
 	}
 
@@ -983,7 +1118,6 @@ int rbusFetch(char **args)
 	}
 
 	rbusObject_Release(outParams);
-	rbus_close(handle);
 
 	free(docname);
         docname = NULL;
@@ -1000,6 +1134,7 @@ int rbusFetch(char **args)
 
 int main( int argc, char *argv[] )
 {
+  	rbus_init("webcfg_decoder");
 	const char *option_string = "m:b:c:f:h::";
         static const struct option options[] = {
 		{ "help",  optional_argument, NULL, 'h' },
@@ -1070,7 +1205,7 @@ int main( int argc, char *argv[] )
                 		return -1;
 		}
 	}
-
+	rbus_unint();
 	return 0;
 }
 
