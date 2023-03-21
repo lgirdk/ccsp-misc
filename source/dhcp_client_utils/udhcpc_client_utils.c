@@ -195,7 +195,7 @@ static int udhcpc_get_other_args (char * buff, dhcp_params * params)
 #ifdef UDHCPC_SCRIPT_FILE
     snprintf (servicefile, sizeof(servicefile), "-s %s ", UDHCPC_SERVICE_SCRIPT_FILE);
 #else
-    if (strcmp(params->ifname, "erouter0") == 0)
+    if (strcmp(params->ifname, "erouter0") == 0 || strcmp(params->ifname, "erouter1") == 0)
     {
         snprintf (servicefile, sizeof(servicefile), "-s %s ", UDHCPC_SERVICE_EXE);
     }
