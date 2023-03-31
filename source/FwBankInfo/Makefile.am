@@ -16,28 +16,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-if NOTIFYLEASE_ENABLE
-NOTIFY = Notify_Lease
-endif
 
-if SETLED_ENABLE
-SETLED = SetLED
-endif
+bin_PROGRAMS = FwBankInfo
 
-if WEBCFG_TESTAPP_ENABLE
-WBCFG_TEST = wbCfgTestDaemon wbCfgTestApp
-endif
+FwBankInfo_SOURCES = FwBank_Info.c
 
-if MULTIPART_UTIL_ENABLE
-MULTIPART_UTIL = multipartRoot
-endif
-
-if BRIDGE_UTILS_BIN_ENABLE
-BRIDGE_UTIL = bridge_utils
-endif
-
-SUBDIRS = Psmcli parcon LTime TimeConv webcfg_decoder MemFrag_Calc $(SETLED) $(MULTIPART_UTIL) $(BRIDGE_UTIL) $(WBCFG_TEST) dhcp_client_utils msgq_util EventSubscription gfo_diag FwBankInfo
-
-if WITH_GTEST_SUPPORT
-SUBDIRS += test
-endif
+FwBankInfo_LDFLAGS = -lhal_platform -ltelemetry_msgsender -lccsp_common
