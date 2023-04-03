@@ -126,6 +126,10 @@ static int udhcpc_get_send_options (char * buff, size_t buff_size, dhcp_opt_list
         {
             snprintf(args, sizeof(args), "-x 0x%02X:%s ", send_opt_list->dhcp_opt, send_opt_list->dhcp_opt_val);
         }
+        else if (send_opt_list->dhcp_opt == DHCPV4_OPT_43)
+        {
+            snprintf(args, sizeof(args), "-x %s ", send_opt_list->dhcp_opt_val);
+        }
         else
         {
 /*
