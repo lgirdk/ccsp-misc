@@ -257,7 +257,7 @@ static int check_proc_entry_for_pid (char * name, char * args)
 
             if (!strcmp(processName, name))
             {
-                if ((status == 'R') || (status == 'S'))
+                if ((status == 'R') || (status == 'S') || (status == 'D'))
                 {
                     if (args != NULL)
                     {
