@@ -90,6 +90,8 @@ typedef enum event_t
     GM_EVENT_REMOTEDEVICEDETECTION_TIMEOUT_UPDATED,
     GM_EVENT_WANDOWNMODESWITCH_TIMEOUT,
     GM_EVENT_DUMP_LOG_TO_FILE,
+    GM_EVENT_DEVICE_REQ_ETHBACKHAUL_LINKSTATUS_UPDATE,
+    GM_EVENT_DEVICE_ETHBACKHAUL_LINKSTATUS_UPDATED,
     GM_EVENT_MAX
 }event_t;
 
@@ -130,7 +132,9 @@ int event[] ={
     GM_EVENT_MESHBACKHAUL_IFNAME_UPDATED,
     GM_EVENT_REMOTEDEVICEDETECTION_TIMEOUT_UPDATED,
     GM_EVENT_WANDOWNMODESWITCH_TIMEOUT,
-    GM_EVENT_DUMP_LOG_TO_FILE
+    GM_EVENT_DUMP_LOG_TO_FILE,
+    GM_EVENT_DEVICE_REQ_ETHBACKHAUL_LINKSTATUS_UPDATE,
+    GM_EVENT_DEVICE_ETHBACKHAUL_LINKSTATUS_UPDATED
 };
 
 
@@ -205,8 +209,8 @@ printf ("\n GM_EVENT_GRE_TUNNEL_ACTIVE = 4 \n");
     printf ("\n GM_EVENT_REMOTEDEVICEDETECTION_TIMEOUT_UPDATED = 34 \n");
     printf ("\n GM_EVENT_WANDOWNMODESWITCH_TIMEOUT = 35 \n");
     printf ("\n GM_EVENT_DUMP_LOG_TO_FILE = 36 \n");
-
-
+    printf ("\n GM_EVENT_DEVICE_REQ_ETHBACKHAUL_LINKSTATUS_UPDATE = 37 \n");
+    printf ("\n GM_EVENT_DEVICE_ETHBACKHAUL_LINKSTATUS_UPDATED = 38 \n");
         return -1;
     }
 #if 0
@@ -227,7 +231,12 @@ printf ("\n GM_EVENT_GRE_TUNNEL_ACTIVE = 4 \n");
     if (qoption == MSG_SEND)
     {
         EventData event_t  = {0};
-        event_t.Event = eventtype; 
+        event_t.Event = eventtype;
+        if (argv[2] && (argc >=3))
+        {
+            strncpy(event_t.msg,argv[2],sizeof(event_t.msg));
+        }
+
         SendmsgToQ(qname,&event_t);
     }
     return 0;
