@@ -26,7 +26,7 @@
 #include <cJSON.h>
 #include <stdint.h>
 #include <getopt.h>
-#include "base64.h"
+#include <trower-base64/base64.h>
 
 #define WIFI_METADATA_MAP_SIZE                3
 #define MULTIPART_DOC "/nvram/multipart.bin"

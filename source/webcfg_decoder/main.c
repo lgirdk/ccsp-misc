@@ -27,7 +27,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <msgpack.h>
-#include "base64.h"
+#include <trower-base64/base64.h>
 #include <rbus.h>
 
 #define MAX_HEADER_LEN		   4096
