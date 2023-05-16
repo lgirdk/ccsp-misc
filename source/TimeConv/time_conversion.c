@@ -43,28 +43,95 @@ int ConvLocalToUTC(char* LocalTime, char* UtcTime);
 static int getLocalTimeStr(char *pTime, char *pDate);
 static int validateTime(char *pTime);
 
+#ifdef UTC_ENABLE
+static int hexToInt(char s[]);
+int getTimeOffsetFromSysevent(char *name, int version);
+
+
+static int hexToInt(char s[])
+{
+    int hexdigit, i, num;
+    bool inputIsValid;
+    i=0;
+    if(s[i] == '0') {
+        ++i;
+        if(s[i] == 'x' || s[i] == 'X'){
+            ++i;
+        }
+    }
+    num = 0;
+    inputIsValid = true;
+    for(; inputIsValid == true; ++i) {
+        if(s[i] >= '0' && s[i] <= '9') {
+            hexdigit = s[i] - '0';
+        } else if(s[i] >= 'a' && s[i] <= 'f') {
+            hexdigit = s[i] - 'a' + 10;
+        } else if(s[i] >= 'A' && s[i] <= 'F') {
+            hexdigit = s[i] - 'A' + 10;
+        } else {
+            inputIsValid = false;
+        }
+        if(inputIsValid == true) {
+            num = 16 * num + hexdigit;
+        }
+    }
+    return num;
+}
+
+int getTimeOffsetFromSysevent(char *name, int version)
+{
+    char a[100];
+    FILE *fp;
+    int off = -1;
+    fp = v_secure_popen("r","sysevent get %s",name);
+    if(fp != NULL)
+    {
+        fgets(a,sizeof(a),fp);
+        a[strlen(a) - 1] = '\0';
+        v_secure_pclose(fp);
+        if(a[0] != '\0')
+        {
+            if(a[0] != '@')
+            {
+                if(version == 6)
+                    off = hexToInt(a);
+                else
+                    off = atoi(a);
+            }
+            else
+            {
+                off = atoi(a + 1);
+            }
+            return off;
+        }
+    }
+    return -1;
+}
+#endif
+
 time_t getOffset()
 {
     time_t off = 0;
 #ifdef UTC_ENABLE
     char a[100];
-    FILE *fp;
-    if(!access("/nvram/ETHWAN_ENABLE", 0))
+    if (!access("/nvram/ETHWAN_ENABLE", 0))
     {
-        fp = v_secure_popen("r","sysevent get ipv4-timeoffset");
-        /* CID:60154 Dereference null return value*/
-        if (!fp) {
-           perror("sysevent get ipv4-timeoffset doesn't exist");
-           return off;
-        }
-        fgets(a,sizeof(a),fp);
-        v_secure_pclose(fp);
-        off = atoi(a + 1);      
+       off = getTimeOffsetFromSysevent("ipv6-timeoffset", 6);
+       if(off != -1)
+       {
+         return off;
+       }
+       
+       off = getTimeOffsetFromSysevent("ipv4-timeoffset", 4);
+       if(off != -1)
+       {
+         return off;
+       }
     }
     else
     {
-    platform_hal_getTimeOffSet(a);
-    off = atoi(a);  
+       platform_hal_getTimeOffSet(a);
+       off = atoi(a);  
     }   
 #endif
     return off;
