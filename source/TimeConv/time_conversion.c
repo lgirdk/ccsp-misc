@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <stdbool.h>
 #ifdef UTC_ENABLE 
 #include "platform_hal.h"
 #include <stdlib.h>
