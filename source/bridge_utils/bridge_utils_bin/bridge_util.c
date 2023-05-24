@@ -247,6 +247,10 @@ int checkIfExists(char* iface_name)
 {
 	struct ifreq ifr;
 	int fd;
+	if (strlen(iface_name) >= sizeof(ifr.ifr_name)) {
+		bridge_util_log("%s Interface doesn't exists \n",iface_name);
+		return INTERFACE_NOT_EXIST;
+	}
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd < 0) {
 		bridge_util_log("%s Interface doesn't exists \n",iface_name);
@@ -259,12 +263,11 @@ int checkIfExists(char* iface_name)
 			close(fd);
 			return INTERFACE_NOT_EXIST;
 		}
-}
+	}
 
     close(fd);
     return INTERFACE_EXIST;
 }
-
 // Function to check if interface is attached to bridge
 int checkIfExistsInBridge(char* iface_name, char *bridge_name)
 {

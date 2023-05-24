@@ -803,7 +803,7 @@ void cli_subdoc_parser(char *ptr, int no_of_bytes)
 		if(count < SUBDOC_TAG_COUNT)
 		{
 			ptr_lb1 =  memchr(ptr_lb+1, '\n', no_of_bytes - (ptr_lb - str_body));
-			if(0 != memcmp(ptr_lb1-1, "\r",1 ))
+			if(ptr_lb1 != NULL && 0 != memcmp(ptr_lb1-1, "\r",1 ))
 			{
 				ptr_lb1 = memchr(ptr_lb1+1, '\n', no_of_bytes - (ptr_lb - str_body));
 			}
@@ -857,7 +857,6 @@ void cli_subdoc_parser(char *ptr, int no_of_bytes)
 		free(str_body);
 	}
 }
-
 int cli_parseMultipartDocument(void *config_data, char *ct , size_t data_size)
 {
 	char *boundary = NULL;
@@ -1214,5 +1213,3 @@ int main( int argc, char *argv[] )
 	rbus_unint();
 	return 0;
 }
-
-

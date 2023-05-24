@@ -498,7 +498,7 @@ pid_t start_exe(char * exe, char * args)
     char **argv = NULL;
     int ret = SUCCESS;
 
-    if ((exe == NULL) && (args == NULL))
+    if ((exe == NULL) || (args == NULL))
     {
         DBG_PRINT("%s %d: Invalid arguments..\n", __FUNCTION__, __LINE__);
         return pid;
@@ -590,7 +590,6 @@ pid_t start_exe(char * exe, char * args)
 
     return pid;
 }
-
 /*
  * free_opt_list_data ()
  * @description: This function is called to free all the dynamic list created to hold dhcp options.
