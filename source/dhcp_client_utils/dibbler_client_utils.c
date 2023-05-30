@@ -356,7 +356,7 @@ pid_t start_dibbler (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_op
     client_info.req_opt_list = req_opt_list;
     client_info.send_opt_list = send_opt_list;
 
-    if ((dibbler_client_prepare_config(&client_info) != SUCCESS) && (client_info.config_path != NULL))
+    if ((dibbler_client_prepare_config(&client_info) != SUCCESS))
     {
         DBG_PRINT("%s %d: Unable to get DHCPv6 REQ OPT.\n", __FUNCTION__, __LINE__);
         return FAILURE;
