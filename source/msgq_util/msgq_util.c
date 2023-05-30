@@ -242,7 +242,7 @@ printf ("\n GM_EVENT_GRE_TUNNEL_ACTIVE = 4 \n");
         event_t.Event = eventtype;
         if (argv[2] && (argc >=3))
         {
-            strncpy(event_t.msg,argv[2],sizeof(event_t.msg));
+            strncpy(event_t.msg,argv[2],sizeof(event_t.msg) - 1);
         }
 
         SendmsgToQ(qname,&event_t);
