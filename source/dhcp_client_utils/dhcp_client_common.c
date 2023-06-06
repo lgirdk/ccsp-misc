@@ -364,6 +364,10 @@ pid_t get_process_pid (char * name, char * args, bool waitForProcEntry)
  */
 static void freeArgs(char **argv)
 {
+    if (argv == NULL)
+   {
+      return;
+   }
    int  i=0;
    while (argv[i] != NULL)
    {
@@ -374,12 +378,8 @@ static void freeArgs(char **argv)
       }
       i++;
    }
-
-   if (argv != NULL)
-   {
       free(argv);
       argv = NULL;
-   }
 }
 
 /*
