@@ -43,6 +43,10 @@ bool brctl_interact(ovs_interact_request *request)
 	char cmd[1024] = {0} ;
 
 	Gateway_Config * gw_config = (Gateway_Config *) ((request->table_config.config) );
+	if (gw_config == NULL )
+	{
+		return false ;
+	}
 #if 0
 	if ( OVS_INSERT_OPERATION == request->operation )
 	{
@@ -245,11 +249,6 @@ bool brctl_interact(ovs_interact_request *request)
 				system(cmd);
 
 		}
-
-		if (gw_config != NULL )
-		{
 			free(gw_config);
-			gw_config = NULL;
-		}
 	return true ;
 }
