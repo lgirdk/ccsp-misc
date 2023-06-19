@@ -365,6 +365,12 @@ int getauthtokenfromfile(const char * authfile, char **data)
 	}
 	fseek(file, 0, SEEK_END);
 	char_count = ftell(file);
+	if (char_count < 0)
+	{
+		printf("Failed to get file size %s\n", authfile);
+		fclose(file);
+		return 0;
+	}
 	fseek(file, 0, SEEK_SET);
 	//printf("The char_count is %d\n", char_count);
 	*data = (char *) malloc(sizeof(char) * (char_count + 1));

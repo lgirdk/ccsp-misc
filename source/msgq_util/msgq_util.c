@@ -163,7 +163,10 @@ int SendmsgToQ(char *queueName, EventData *pEventData)
             // failed to send
             printf("\n Mq Send failed %s errno %d \n",__FUNCTION__,errno);
         }
-        mq_close(mqTmp);
+        if (mq_close(mqTmp) == -1)
+        {
+            printf("\n Mq close failed %s errno %d \n",__FUNCTION__,errno);
+        }
     }
     return 0;
 }
