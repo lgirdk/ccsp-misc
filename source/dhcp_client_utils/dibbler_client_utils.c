@@ -17,6 +17,7 @@
  * limitations under the License.
  */
 
+#include <stdlib.h>
 #include <syscfg/syscfg.h>
 
 #include "dibbler_client_utils.h"
@@ -398,9 +399,8 @@ int stop_dibbler (dhcp_params * params)
         return FAILURE;
     }
 
-    if (signal_process(pid, SIGTERM) != RETURN_OK)
+    if (system(DIBBLER_CLIENT " stop") != 0)
     {
-        DBG_PRINT("%s %d: unable to send signal to pid %d\n", __FUNCTION__, __LINE__, pid);
         return FAILURE;
     }
 
