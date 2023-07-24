@@ -71,9 +71,9 @@ typedef enum {
 } IfaceType;
 
 typedef struct dhcp_opt {
-    char * ifname;
+    char * ifname;      // VLAN interface name
+    char * baseIface;   // Base interface name
     IfaceType ifType;
-    unsigned int opt;
     unsigned char is_release_required;
 } dhcp_params;
 

@@ -101,11 +101,15 @@ static int get_dhcpv4_opt_list (dhcp_params * params, dhcp_opt_list ** req_opt_l
         DBG_PRINT("Failed to get eth_wan_enabled \n");
     }
 
-    if ((params->opt & DHCPV4_OPT_43) == DHCPV4_OPT_43)
+#if defined(_HUB4_PRODUCT_REQ_)
+    if (strncmp(params->baseIface, "eth", 3) == 0)
     {
         DBG_PRINT("%s %d: Adding Option 43 \n", __FUNCTION__, __LINE__);
         add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_43, NULL);
     }
+#else
+    UNUSED_VARIABLE(params);
+#endif
 
     if (platform_hal_GetDhcpv4_Options(req_opt_list, send_opt_list) == FAILURE)
     {
