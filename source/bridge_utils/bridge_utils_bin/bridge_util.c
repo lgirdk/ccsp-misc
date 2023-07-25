@@ -83,6 +83,9 @@ static char *MeshBhaulL3Net = "dmsb.MultiLAN.MeshBhaul_l3net";
 static char *MeshWiFiBhaulL3Net_2G = "dmsb.MultiLAN.MeshWiFiBhaul_2G_l3net";
 static char *MeshWiFiBhaulL3Net_5G = "dmsb.MultiLAN.MeshWiFiBhaul_5G_l3net";
 static char *EthBhaulL3Net = "dmsb.MultiLAN.EthBhaul_l3net";
+#if defined (WIFI_MANAGE_SUPPORTED)
+static char *ManageWiFiData = "dmsb.MultiLAN.ManageWiFi_l3net";
+#endif /*WIFI_MANAGE_SUPPORTED*/
 
 static char *l3netIPaddr = "dmsb.l3net.%d.V4Addr";
 
@@ -1088,7 +1091,7 @@ void assignIpToBridge(char* bridgeName, char* l3netName)
 
     if(subNetMask[0] != '\0')
     {
-        bridge_util_log("%s : Assigning Ip %s with default subnetmask %s to bridge %s \n",__FUNCTION__,ipaddr,subNetMask, bridgeName);
+        bridge_util_log("%s : Assigning Ip [%s] with default subnetmask [%s] to bridge [%s] \n",__FUNCTION__,ipaddr,subNetMask, bridgeName);
         ret = v_secure_system("ifconfig %s %s netmask %s up",bridgeName,ipaddr, subNetMask);
         if(ret != 0)
         {
@@ -1097,7 +1100,7 @@ void assignIpToBridge(char* bridgeName, char* l3netName)
     }
     else
     {
-        bridge_util_log("%s : Assigning Ip %s to bridge %s \n",__FUNCTION__,ipaddr,bridgeName);
+        bridge_util_log("%s : Assigning Ip [%s] to bridge [%s] \n",__FUNCTION__,ipaddr,bridgeName);
         ret = v_secure_system("ifconfig %s %s",bridgeName,ipaddr);
         if(ret != 0)
         {
@@ -1212,6 +1215,17 @@ int HandlePostConfigGeneric(bridgeDetails *bridgeInfo,int InstanceNumber)
 					assignIpToBridge(bridgeInfo->bridgeName,MeshWiFiBhaulL3Net_5G);
 				}
 				break;
+
+#if defined (WIFI_MANAGE_SUPPORTED)
+            case MANAGE_WIFI_BRIDGE:
+            {
+                if (BridgeOprInPropgress == CREATE_BRIDGE )
+                {
+                    assignIpToBridge(bridgeInfo->bridgeName,ManageWiFiData);
+                }
+                break;
+            }
+#endif /*WIFI_MANAGE_SUPPORTED*/
 
 			default :
 					bridge_util_log("%s : Default case\n",__FUNCTION__); 
