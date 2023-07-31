@@ -2751,13 +2751,17 @@ int bridgeUtils_main(int argc, char *argv[])
     {
         int instance = -1;
         instance = HandleWifiInterface(Cmd_Opr);
-        if( -1 != instance )
+        if( -1 != instance && HOTSPOT_2G != instance && HOTSPOT_5G != instance && HOTSPOT_SECURE_2G != instance && HOTSPOT_SECURE_5G != instance)
         {
             bridge_util_log(" In wlan instance %d \n", instance );
             BridgeOprInPropgress = CREATE_BRIDGE;
             InstanceNumber = instance;
             CreateBrInterface();
         }
+		else if(HOTSPOT_2G == instance || HOTSPOT_5G == instance || HOTSPOT_SECURE_2G == instance || HOTSPOT_SECURE_5G == instance)
+		{
+			bridge_util_log(" In wlan instance %d. This will be handled as part of hotspot blob unpack and gre tunnel creation \n", instance );
+		}
     }
     else
     {
