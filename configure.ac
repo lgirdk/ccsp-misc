@@ -85,6 +85,15 @@ AC_ARG_ENABLE([wbCfgTestAppEnable],
 esac],[WEBCFG_TESTAPP_ENABLE=false])
 AM_CONDITIONAL([WEBCFG_TESTAPP_ENABLE], [test x$WEBCFG_TESTAPP_ENABLE = xtrue])
 
+AC_ARG_ENABLE([rdkSchedulerTestAppEnable],
+[  --enable-rdkSchedulerTestAppEnable    Turn on rdkSchedulerTestAppEnable ],
+[case "${enableval}" in
+  yes) RDKSCHEDULER_TESTAPP_ENABLE=true ;;
+  no)  RDKSCHEDULER_TESTAPP_ENABLE=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-wbCfgTestAppEnable]) ;;
+esac],[RDKSCHEDULER_TESTAPP_ENABLE=false])
+AM_CONDITIONAL([RDKSCHEDULER_TESTAPP_ENABLE], [test x$RDKSCHEDULER_TESTAPP_ENABLE = xtrue])
+
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
@@ -117,7 +126,7 @@ AC_CONFIG_FILES(
 	source/Makefile
 	source/dhcp_client_utils/Makefile
 	source/msgq_util/Makefile
-        source/FwBankInfo/Makefile
+  source/FwBankInfo/Makefile
 	Makefile
 )
 
@@ -130,6 +139,8 @@ AM_COND_IF([MULTIPART_UTIL_ENABLE], [AC_CONFIG_FILES([source/multipartRoot/Makef
 AM_COND_IF([WEBCFG_TESTAPP_ENABLE], [AC_CONFIG_FILES([source/wbCfgTestDaemon/Makefile] [source/wbCfgTestApp/Makefile] )])
 
 AM_COND_IF([BRIDGE_UTILS_BIN_ENABLE], [AC_CONFIG_FILES([source/bridge_utils/bridge_utils_bin/Makefile] [source/bridge_utils/Makefile] )])
+
+AM_COND_IF([RDKSCHEDULER_TESTAPP_ENABLE], [AC_CONFIG_FILES([source/RdkSchdeuler_TestApp/Makefile])])
 
 AC_SUBST(GTEST_ENABLE_FLAG)
 
