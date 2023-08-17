@@ -701,7 +701,7 @@ char * append_wifi_doc(char * subdoc_name, uint32_t version, uint16_t trans_id, 
     return wifi_finaldocdata;
 }
 
-ssize_t webcfg_pack_doc(const data1_t *packData, void **data)
+ssize_t webcfg_pack_doc(const data1_t *packData, void **data, char *wrapperName)
 {
 	size_t rv = -1;
 	msgpack_sbuffer sbuf;
@@ -714,7 +714,7 @@ ssize_t webcfg_pack_doc(const data1_t *packData, void **data)
 	{
 		int count = packData->count;
 		msgpack_pack_map( &pk, 1);
-		__msgpack_pack_string( &pk, "PublicHotspotData", strlen("PublicHotspotData") );
+		__msgpack_pack_string( &pk, wrapperName, strlen(wrapperName) );
 		msgpack_pack_array( &pk, count );
 
 		for( i = 0; i < count; i++ ) //1 element
@@ -756,7 +756,7 @@ ssize_t webcfg_pack_doc(const data1_t *packData, void **data)
 	return rv;
 }
 
-ssize_t webcfg_pack_rootdoc(const char * blob, void **data, size_t size)
+ssize_t webcfg_pack_rootdoc(const char * blob, void **data, size_t size, char *rootParamName)
 {
 	size_t rv = -1;
 	msgpack_sbuffer sbuf;
@@ -780,7 +780,7 @@ ssize_t webcfg_pack_rootdoc(const char * blob, void **data, size_t size)
 			MAP_NAME.name = "name";
 			MAP_NAME.length = strlen( "name" );
 			printf("The count is %d\n", count);
-			__msgpack_pack_string_nvp( &pk, &MAP_NAME, "Device.GRE.X_RDK_PublicHotspotData" );
+			__msgpack_pack_string_nvp( &pk, &MAP_NAME, rootParamName );
 
 			struct webcfg_token MAP_VALUE;
 
@@ -818,7 +818,62 @@ ssize_t webcfg_pack_rootdoc(const char * blob, void **data, size_t size)
 	return rv;
 }
 
-int processPacking(char *filename1, char *filename2, uint32_t version, char * subdocname)
+void paramnamestrip(char *input, char **filename, char **parameter)
+{
+	char *token;
+	char *delimiter = ":";
+
+	token = strtok(input, delimiter);
+	if (token != NULL)
+	{
+		*filename = (char *)malloc(strlen(token) + 1);
+		strncpy(*filename, token, strlen(token));
+		(*filename)[strlen(token)] = '\0';
+
+		token = strtok(NULL, delimiter);
+
+		if (token != NULL)
+		{
+			*parameter = (char *)malloc(strlen(token) + 1);
+			strncpy(*parameter, token, strlen(token));
+			(*parameter)[strlen(token)] = '\0';
+		}
+	}
+}
+
+void docnamestrip(char *input, char **docName, char **wrapperName, char **rootParamName)
+{
+	char *token;
+	char *delimiter = ":";
+
+	token = strtok(input, delimiter);
+	if (token != NULL)
+	{
+		*docName = (char *)malloc(strlen(token) + 1);
+		strncpy(*docName, token, strlen(token));
+		(*docName)[strlen(token)] = '\0';
+
+		token = strtok(NULL, delimiter);
+
+		if (token != NULL)
+		{
+			*wrapperName = (char *)malloc(strlen(token) + 1);
+			strncpy(*wrapperName, token, strlen(token));
+			(*wrapperName)[strlen(token)] = '\0';
+		}
+
+		token = strtok(NULL, delimiter);
+
+		if (token != NULL)
+		{
+			*rootParamName = (char *)malloc(strlen(token) + 1);
+			strncpy(*rootParamName, token, strlen(token));
+			(*rootParamName)[strlen(token)] = '\0';
+		}
+	}
+}
+
+int processPacking(char *filename1, char *filename2, uint32_t version, char * subdocname, char *wrapperName, char *rootParamName)
 {
 	char *fileData1 = NULL;
 	char *fileData2 = NULL;
@@ -829,8 +884,14 @@ int processPacking(char *filename1, char *filename2, uint32_t version, char * su
 	size_t rootPackSize, blobPackSize = -1;
 	int encodedLen = 0;
 	char * encodedData = NULL;
-	
-	if(readFromFile(filename1, &fileData1, &len1) && readFromFile(filename2, &fileData2, &len2))
+	char *fname1, *fname2, *paramname1, *paramname2 = NULL;
+
+	paramnamestrip(filename1, &fname1, &paramname1);
+	paramnamestrip(filename2, &fname2, &paramname2);
+
+	printf("fname1 is %s and paramname1 is %s\n", fname1, paramname1);
+	printf("fname2 is %s and paramname2 is %s\n", fname2, paramname2);
+	if(readFromFile(fname1, &fileData1, &len1) && readFromFile( fname2, &fileData2, &len2))
 	{
 		packBlobData = ( data1_t * ) malloc( sizeof( data1_t ) );
 		if(packBlobData != NULL && fileData1 != NULL && fileData2 != NULL)
@@ -842,7 +903,8 @@ int processPacking(char *filename1, char *filename2, uint32_t version, char * su
 			packBlobData->data_items = (dataval_t *) malloc( sizeof(dataval_t) * packBlobData->count );
 			memset( packBlobData->data_items, 0, sizeof(dataval_t) * packBlobData->count );
 
-			packBlobData->data_items[0].name = strdup("Device.GRE.X_RDK_TunnelData");
+			//packBlobData->data_items[0].name = strdup("Device.GRE.X_RDK_TunnelData");
+			packBlobData->data_items[0].name = strdup(paramname1);
 			packBlobData->data_items[0].value = malloc(sizeof(char) * len1+1);
 			memset(packBlobData->data_items[0].value, 0, sizeof(char) * len1+1);
 			packBlobData->data_items[0].value = memcpy(packBlobData->data_items[0].value, fileData1, len1+1);
@@ -851,7 +913,8 @@ int processPacking(char *filename1, char *filename2, uint32_t version, char * su
 			printf("went here2\n");
 			packBlobData->data_items[0].type = 12;
 
-			packBlobData->data_items[1].name = strdup("Device.WiFi.X_RDK_VapData");
+			//packBlobData->data_items[1].name = strdup("Device.WiFi.X_RDK_VapData");
+			packBlobData->data_items[1].name = strdup(paramname2);
 			packBlobData->data_items[1].value = malloc(sizeof(char) * len2+1);
 			memset(packBlobData->data_items[1].value, 0, sizeof(char) * len2+1);
 			packBlobData->data_items[1].value = memcpy(packBlobData->data_items[1].value, fileData2, len2+1);
@@ -862,26 +925,51 @@ int processPacking(char *filename1, char *filename2, uint32_t version, char * su
 		else
 		{
 			printf("Failed in memory allocation\n");
-                        if(packBlobData)
-                        {
-                            free(packBlobData);
-                            packBlobData = NULL;
-                        }
-                        if(fileData1)
-                        {
-			    free(fileData1);
-                            fileData1 = NULL;
-                        }
-                        if(fileData2)
-                        {
-			    free(fileData2);
-                            fileData2 = NULL;
-                        }
+			if(packBlobData)
+			{
+				free(packBlobData);
+				packBlobData = NULL;
+			}
+			if(fileData1)
+			{
+				free(fileData1);
+				fileData1 = NULL;
+			}
+			if(fileData2)
+			{
+				free(fileData2);
+				fileData2 = NULL;
+			}
+
+			if(fname1)
+			{
+				free(fname1);
+				fname1 = NULL;
+			}
+
+			if(fname2)
+			{
+				free(fname2);
+				fname2 = NULL;
+			}
+
+			if(paramname1)
+			{
+				free(paramname1);
+				paramname1 = NULL;
+			}
+
+			if(paramname2)
+			{
+				free(paramname2);
+				paramname2 = NULL;
+			}
+
 			return 0;
 		}
 
 		printf("Before here\n");
-		blobPackSize = webcfg_pack_doc( packBlobData, &packedData);
+		blobPackSize = webcfg_pack_doc( packBlobData, &packedData, wrapperName);
 		printf("blobPackSize is %zu\n", blobPackSize);
 		
 		if(blobPackSize > 0)
@@ -891,39 +979,67 @@ int processPacking(char *filename1, char *filename2, uint32_t version, char * su
 			{
 				fprintf(stderr,"%s File not Found\n", B64OUTFILE);
 				free(encodedData);
-                                encodedData = NULL;
+				encodedData = NULL;
 				/* CID :173130 Resource leak (RESOURCE_LEAK) */
-		                free(fileData1);
-                                fileData1 = NULL;
-                                
-                                free(fileData2);
-                                fileData2 = NULL;
-                                
-                                /* CID :173133 Resource leak (RESOURCE_LEAK) */
-			        free(packBlobData);
-                                packBlobData = NULL;
+				free(fileData1);
+				fileData1 = NULL;
 
-                                free(packedData);
-                                packedData = NULL;
+				free(fileData2);
+				fileData2 = NULL;
+
+				/* CID :173133 Resource leak (RESOURCE_LEAK) */
+				free(packBlobData);
+				packBlobData = NULL;
+
+				free(packedData);
+				packedData = NULL;
+
+				free(fname1);
+				fname1 = NULL;
+
+				free(fname2);
+				fname2 = NULL;
+
+				free(paramname1);
+				paramname1 = NULL;
+
+				free(paramname2);
+				paramname2 = NULL;
 
 				return 0;
 			}
 			free(encodedData);
                         encodedData = NULL;
-			rootPackSize = webcfg_pack_rootdoc( (const char *)packedData, &packedRootData, blobPackSize);
+			rootPackSize = webcfg_pack_rootdoc( (const char *)packedData, &packedRootData, blobPackSize, rootParamName);
 			printf("rootPackSize is %zu\n", rootPackSize);
 		}
 		else
 		{
 			printf("Failed in memory allocation\n");
-                        free(packBlobData);
-                        packBlobData = NULL;
+			free(packBlobData);
+			packBlobData = NULL;
+
 			free(fileData1);
-                        fileData1 = NULL;
+			fileData1 = NULL;
+
 			free(fileData2);
-                        fileData2 = NULL;
+			fileData2 = NULL;
+
 			free(packedData);
-                        packedData = NULL;
+			packedData = NULL;
+
+			free(fname1);
+			fname1 = NULL;
+
+			free(fname2);
+			fname2 = NULL;
+
+			free(paramname1);
+			paramname1 = NULL;
+
+			free(paramname2);
+			paramname2 = NULL;
+
 			return 0;
 		}
 
@@ -934,32 +1050,60 @@ int processPacking(char *filename1, char *filename2, uint32_t version, char * su
 			{
 				fprintf(stderr,"%s File not Found\n", OUTFILE);
 				free(packedRootData);
-                                packedRootData = NULL;
+				packedRootData = NULL;
 				/* CID :173131 Resource leak (RESOURCE_LEAK) */
-		                free(fileData1);
-                                fileData1 = NULL;
-                          
-                                free(fileData2);
-                                fileData2 = NULL;   
+				free(fileData1);
+				fileData1 = NULL;
 
-                                free(packedData);
-                                packedData = NULL;
-                                
-                                free(packBlobData);
-                                packBlobData = NULL;
+				free(fileData2);
+				fileData2 = NULL;
+
+				free(packedData);
+				packedData = NULL;
+
+				free(packBlobData);
+				packBlobData = NULL;
+
+				free(fname1);
+				fname1 = NULL;
+
+				free(fname2);
+				fname2 = NULL;
+
+				free(paramname1);
+				paramname1 = NULL;
+
+				free(paramname2);
+				paramname2 = NULL;
+
 				return 0;
 			}
 			free(packedRootData);
-                        packedRootData = NULL;
+			packedRootData = NULL;
 		}
 		free(fileData1);
-                fileData1 = NULL;
+		fileData1 = NULL;
+
 		free(fileData2);
-                fileData2 = NULL;
+		fileData2 = NULL;
+
 		free(packedData);
-                packedData = NULL;
-                free(packBlobData);
-                packBlobData = NULL;
+		packedData = NULL;
+
+		free(packBlobData);
+		packBlobData = NULL;
+
+		free(fname1);
+		fname1 = NULL;
+
+		free(fname2);
+		fname2 = NULL;
+
+		free(paramname1);
+		paramname1 = NULL;
+
+		free(paramname2);
+		paramname2 = NULL;
                 
 	}
 	else
@@ -986,18 +1130,23 @@ int parseSubDocArgument(char **args, int count, multipart_subdoc_t **docs)
 	for (i = 2; i<count; i++)
 	{
 		isBlob = 0;
+		multilevelBlob = 0;
 		docData = strdup(args[i]);
 		tempStr = docData;
 		(*docs)[j].version = strdup(strsep(&tempStr,","));
 		version = strtoul((*docs)[j].version, 0 ,0);
 		(*docs)[j].name = strdup(strsep(&tempStr,","));
+		printf("(*docs)[%d].name is %s\n", j , (*docs)[j].name);
 		fileName1 = strdup(strsep(&tempStr,","));
+		printf("fileName1 is %s\n", fileName1);
 		if(tempStr != NULL)
 		{
 			blobStr = strsep(&tempStr,",");
+			printf("blobStr is %s\n", blobStr);
 			if(strcmp(blobStr, "blob") == 0)
 			{
 				isBlob = 1;
+				printf("It is a blob type\n");
 			}
 			else
 			{
@@ -1034,7 +1183,20 @@ int parseSubDocArgument(char **args, int count, multipart_subdoc_t **docs)
 		}
 		else
 		{
-			if(processPacking(fileName1, fileName2, version, (*docs)[j].name))
+			char* tempDocName, *wrapperName, *rootParamName = NULL;
+
+			docnamestrip((*docs)[j].name, &tempDocName, &wrapperName, &rootParamName);
+
+			if((*docs)[j].name != NULL)
+			{
+				free((*docs)[j].name);
+				(*docs)[j].name = NULL;
+			}
+
+			(*docs)[j].name = strdup(tempDocName);
+			free(tempDocName);
+
+			if(processPacking(fileName1, fileName2, version, (*docs)[j].name, wrapperName, rootParamName))
 			{
 				if(readFromFile(OUTFILE, &fileData, &len))
 				{
@@ -1052,9 +1214,19 @@ int parseSubDocArgument(char **args, int count, multipart_subdoc_t **docs)
 			}
 			else
 			{
-	                        free(fileName1);
+	                       free(fileName1);
 				free(fileName2);
+				free(wrapperName);
+				free(rootParamName);
 				return 0;
+			}
+			if(wrapperName != NULL)
+			{
+				free(wrapperName);
+			}
+			if(rootParamName != NULL)
+			{
+				free(rootParamName);
 			}
 			
 		}
@@ -1062,7 +1234,7 @@ int parseSubDocArgument(char **args, int count, multipart_subdoc_t **docs)
 		{
 			free(fileName1);
 		}
-		if(fileName2 != NULL)
+		if(fileName2 != NULL && isBlob != 1)
 		{
 			free(fileName2);
 		}
