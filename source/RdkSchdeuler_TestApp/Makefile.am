@@ -22,4 +22,4 @@ bin_PROGRAMS = rdkSchedulerTestApp
 
 rdkSchedulerTestApp_SOURCES = testapp_main.c
 
-rdkSchedulerTestApp_LDFLAGS = -lrdk_scheduler -lcimplog
+rdkSchedulerTestApp_LDFLAGS = -lrdk_scheduler -lcimplog -lcjson

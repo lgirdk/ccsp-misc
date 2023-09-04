@@ -95,11 +95,22 @@ void test_json_schedule( char* json_path, char* key)
             if (time_item && indexes) {
                 schedule_info->absolute[i].time = time_item->valueint;
 
-                cJSON *index_item = cJSON_GetArrayItem(indexes, 0);
-                if (index_item) {
-                    schedule_info->absolute[i].action_count = 1;
-                    schedule_info->absolute[i].action_indexes[0] = index_item->valueint;
-                } else {
+                int absolute_indexes_size =  cJSON_GetArraySize(indexes);
+
+                if(absolute_indexes_size > 0) {
+                    schedule_info->absolute[i].action_count = absolute_indexes_size;
+                    
+                    for (int j=0; j<absolute_indexes_size; j++) {
+                        cJSON *index_item = cJSON_GetArrayItem(indexes, j);
+                        if (index_item) {
+                            schedule_info->absolute[i].action_indexes[j] = index_item->valueint;
+                        } else {
+                            printf("Failed to get index value.\n");
+                        }
+                        
+                    }
+                }
+                else {
                     schedule_info->absolute[i].action_count = 0;
                 }
             }
@@ -121,11 +132,21 @@ void test_json_schedule( char* json_path, char* key)
             if (time_item && indexes) {
                 schedule_info->weekly[i].time = time_item->valueint;
 
-                cJSON *index_item = cJSON_GetArrayItem(indexes, 0);
-                if (index_item) {
-                    schedule_info->weekly[i].action_count = 1;
-                    schedule_info->weekly[i].action_indexes[0] = index_item->valueint;
-                } else {
+                int weekly_indexes_size =  cJSON_GetArraySize(indexes);
+
+                if(weekly_indexes_size > 0) {
+                    schedule_info->weekly[i].action_count = weekly_indexes_size;
+                    
+                    for (int j=0; j<weekly_indexes_size; j++) {
+                        cJSON *index_item = cJSON_GetArrayItem(indexes, j);
+                        if (index_item) {
+                            schedule_info->weekly[i].action_indexes[j] = index_item->valueint;
+                        } else {
+                            printf("Failed to get index value.\n");
+                        }
+                    }
+                }
+                else {
                     schedule_info->weekly[i].action_count = 0;
                 }
             }
