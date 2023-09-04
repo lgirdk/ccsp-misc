@@ -2616,6 +2616,7 @@ int bridgeUtils_main(int argc, char *argv[])
 	}
 
 	int i = 1, rc = 0 ;
+	bridgeDetails *bridgeInfo = NULL;
 	for (i = 1; i < argc; ++i)
 	{
 		/* code */
@@ -2764,18 +2765,58 @@ int bridgeUtils_main(int argc, char *argv[])
     else if ( (strstr(Cmd_Opr,"if_wlan") != 0 ) ) 
     {
         int instance = -1;
+        char *wlan_ifname = NULL;
+        char if_wlan_cmd[32] = {0};
+
+        memcpy(if_wlan_cmd, Cmd_Opr, 32);
+        wlan_ifname = strtok (if_wlan_cmd, "_");
+        wlan_ifname = strtok (NULL, "-");
+        if (wlan_ifname == NULL)
+        {
+            bridge_util_log("%s : wlan_ifname is NULL, exiting\n", __FUNCTION__);
+            rc = -1;
+            goto EXIT;
+        }
+        bridge_util_log("wlan_ifname %s\n", wlan_ifname);
+
+        bridgeInfo = (bridgeDetails*)malloc(sizeof(bridgeDetails));
+        if (bridgeInfo == NULL)
+        {
+            bridge_util_log("%s : Memory allocation failed to allocate for bridgeDetails, exiting\n", __FUNCTION__);
+            rc = -1;
+            goto EXIT;
+        }
+
+        memset(bridgeInfo, 0, sizeof(bridgeDetails));
         instance = HandleWifiInterface(Cmd_Opr);
+        InstanceNumber = instance;
+        getIfList(bridgeInfo);
+
+        if ((bridgeInfo->bridgeName[0] == '\0') || (bridgeInfo->WiFiIfList[0] == '\0'))
+        {
+            bridge_util_log("bridgeName / WiFiIfList is empty, exiting\n");
+            rc = -1;
+            goto EXIT;
+        }
         if( -1 != instance && HOTSPOT_2G != instance && HOTSPOT_5G != instance && HOTSPOT_SECURE_2G != instance && HOTSPOT_SECURE_5G != instance)
         {
             bridge_util_log(" In wlan instance %d \n", instance );
-            BridgeOprInPropgress = CREATE_BRIDGE;
-            InstanceNumber = instance;
-            CreateBrInterface();
+            bridge_util_log("In wlan ifname %s\n", wlan_ifname);
+            if ((INTERFACE_EXIST == checkIfExists(wlan_ifname)))
+            {
+                if (strstr(bridgeInfo->WiFiIfList, wlan_ifname) != 0 )
+                {
+                    if (INTERFACE_NOT_EXIST == checkIfExistsInBridge(wlan_ifname, bridgeInfo->bridgeName))
+                    {
+                        AddOrDeletePort(bridgeInfo->bridgeName, wlan_ifname, OVS_IF_UP_CMD);
+                    }
+                }
+            }
         }
-		else if(HOTSPOT_2G == instance || HOTSPOT_5G == instance || HOTSPOT_SECURE_2G == instance || HOTSPOT_SECURE_5G == instance)
-		{
-			bridge_util_log(" In wlan instance %d. This will be handled as part of hotspot blob unpack and gre tunnel creation \n", instance );
-		}
+        else if(HOTSPOT_2G == instance || HOTSPOT_5G == instance || HOTSPOT_SECURE_2G == instance || HOTSPOT_SECURE_5G == instance)
+        {
+            bridge_util_log(" In wlan instance %d. This will be handled as part of hotspot blob unpack and gre tunnel creation \n", instance );
+        }
     }
     else
     {
@@ -2783,6 +2824,11 @@ int bridgeUtils_main(int argc, char *argv[])
     }
 
 EXIT:
+    if (bridgeInfo != NULL)
+    {
+        free(bridgeInfo);
+        bridgeInfo = NULL;
+    }
 	ExitFunc();
 
 
