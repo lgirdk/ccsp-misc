@@ -418,6 +418,28 @@ int stop_dibbler (dhcp_params * params)
         return FAILURE;
     }
 
+    unsigned int waitTime = DIBBLER_CLIENT_TERMINATE_TIMEOUT;
+    struct stat sts;
+    char cmd[BUFLEN_128] = {0};
+    snprintf(cmd, sizeof(cmd), "/proc/%d", pid);
+    while (waitTime > 0)
+    {
+        // check if pid is still present
+        if (stat(cmd, &sts) == -1 && errno == ENOENT) {
+            // process doesn't exist
+            DBG_PRINT("%s %d: dibbler-client exited\n", __FUNCTION__, __LINE__);
+            break;
+        }
+        
+        usleep(DIBBLER_CLIENT_TERMINATE_INTERVAL * USECS_IN_MSEC);
+        waitTime -= DIBBLER_CLIENT_TERMINATE_INTERVAL;
+    }
+    if (waitTime <= 0)
+    {
+        DBG_PRINT("%s %d: Waited for %d millisec, dibbler-client still running\n", __FUNCTION__, __LINE__, DIBBLER_CLIENT_TERMINATE_TIMEOUT);
+        return FAILURE;
+    }
+
     return SUCCESS;
 
 }

@@ -35,6 +35,7 @@
 #define DIBBLER_TEMPLATE_CONFIG_FILE "/tmp/dibbler/client-template.conf"
 #define DIBBLER_CLIENT_PIDFILE       "/tmp/dibbler/client.pid"
 #define DIBBLER_CLIENT_TERMINATE_TIMEOUT  (5 * MSECS_IN_SEC)
+#define DIBBLER_CLIENT_TERMINATE_INTERVAL (0.5 * MSECS_IN_SEC)
 
 typedef struct {
     dhcp_params * if_param;
