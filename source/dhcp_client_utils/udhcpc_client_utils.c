@@ -257,7 +257,20 @@ pid_t start_udhcpc (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_opt
 
     DBG_PRINT("%s %d: Starting udhcpc.\n", __FUNCTION__, __LINE__);
 
-    return start_exe(UDHCPC_CLIENT_PATH, buff);
+    pid = start_exe(UDHCPC_CLIENT_PATH, buff);
+
+#ifdef UDHCPC_RUN_IN_BACKGROUND
+    // udhcpc-client will demonize a child thread during start, so we need to collect the exited main thread
+    if (collect_waiting_process(pid, UDHCPC_TERMINATE_TIMEOUT) != SUCCESS)
+    {
+        DBG_PRINT("%s %d: unable to collect pid for %d.\n", __FUNCTION__, __LINE__, pid);
+    }
+
+    DBG_PRINT("%s %d: Started dibbler-client. returning pid..\n", __FUNCTION__, __LINE__);
+    pid = get_process_pid (UDHCPC_CLIENT, NULL, true);
+#endif
+
+    return pid;
 
 }
 
