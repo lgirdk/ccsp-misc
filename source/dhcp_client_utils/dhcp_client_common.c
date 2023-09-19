@@ -38,6 +38,8 @@ int signal_process (pid_t pid, int signal)
 
     int ret;
 
+    DBG_PRINT("%s %d: Sending signal %d to pid %d\n", __FUNCTION__, __LINE__, signal, pid);
+
     if ((ret = kill(pid, signal)) < 0)
     {
         DBG_PRINT("%s %d: Invalid pid %d or signal %d\n", __FUNCTION__, __LINE__, pid, signal);
@@ -594,6 +596,44 @@ pid_t start_exe(char * exe, char * args)
 
     return pid;
 }
+
+
+/*
+ * add_dhcp_opt_to_list ()
+ * @description: util function to add DHCP opt and DHCP opt value to list
+ * @params     : opt_list - output param to add DHCP options
+               : opt - DHCP option
+               : opt_val - DHCP option value - optional
+ * @return     : returns the SUCCESS on adding option to list, else returns failure
+ *
+ */
+int add_dhcp_opt_to_list (dhcp_opt_list ** opt_list, int opt, char * opt_val)
+{
+
+    if ((opt_list == NULL) || (opt <= 0))
+    {
+        return RETURN_ERR;
+    }
+
+    dhcp_opt_list * new_dhcp_opt = malloc (sizeof(dhcp_opt_list));
+    if (new_dhcp_opt == NULL)
+    {
+        return RETURN_ERR;
+    }
+    memset (new_dhcp_opt, 0, sizeof(dhcp_opt_list));
+    new_dhcp_opt->dhcp_opt = opt;
+    new_dhcp_opt->dhcp_opt_val = opt_val;
+
+    if (*opt_list != NULL)
+    {
+        new_dhcp_opt->next = *opt_list;
+    }
+    *opt_list = new_dhcp_opt;
+
+    return RETURN_OK;
+
+}
+
 /*
  * free_opt_list_data ()
  * @description: This function is called to free all the dynamic list created to hold dhcp options.

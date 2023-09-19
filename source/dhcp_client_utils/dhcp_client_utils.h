@@ -59,6 +59,8 @@
 #define MSECS_IN_SEC                      1000
 #define RETURN_PID_TIMEOUT_IN_MSEC        (5 * MSECS_IN_SEC)    // 5 sec
 #define RETURN_PID_INTERVAL_IN_MSEC       (0.5 * MSECS_IN_SEC)  // 0.5 sec - half a second
+#define INTF_V6LL_TIMEOUT_IN_MSEC        (5 * MSECS_IN_SEC)    // 5 sec
+#define INTF_V6LL_INTERVAL_IN_MSEC       (0.5 * MSECS_IN_SEC)  // 0.5 sec - half a second
 
 #define DBG_PRINT(fmt, arg...) \
         RDK_LOG(RDK_LOG_INFO, "LOG.RDK.WANMANAGER", fmt, ##arg);
@@ -86,3 +88,4 @@ pid_t get_process_pid (char * name, char * args, bool waitForProcEntry);
 int collect_waiting_process(int pid, int timeout);
 void free_opt_list_data (dhcp_opt_list * opt_list);
 int signal_process (pid_t pid, int signal);
+int add_dhcp_opt_to_list (dhcp_opt_list ** opt_list, int opt, char * opt_val);

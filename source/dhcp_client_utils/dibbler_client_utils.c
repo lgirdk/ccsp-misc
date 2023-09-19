@@ -25,7 +25,7 @@
 
 #define LOCALHOST         "127.0.0.1"
 #define MAPT_SYSEVENT_NAME "mapt_evt_handler"
-#ifdef FEATURE_MAPT
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 #define SYSCFG_MAPT_FEATURE_ENABLE   "MAPT_Enable"
 #endif
 
@@ -81,53 +81,6 @@ static int copy_file (char * src, char * dst)
 
 }
 
-static void convert_option16_to_hex(char **optionVal)
-{
-    if(*optionVal == NULL)
-    {
-        return;
-    }
-    
-    char enterprise_number_string[5] = {'\0'};
-    int enterprise_number;
-    int enterprise_number_len = 4;
-    char temp[10] ={0};
-
-    // we receive option value in  [enterprise_number(4 bytes) + vendor-class-data field] format. Parse enterprise_number and covnert to int.
-    strncpy(enterprise_number_string, *optionVal, enterprise_number_len);
-    enterprise_number = atoi(enterprise_number_string);
-
-    //lenth to store option in hex (0x...) format
-    // 2 (length for "0x") + length to store option value in %02X (2 * (len of null + length to store data_field_length  + len of *optionVal + len of null)) + 1 (null)
-    int optlen = 2 + 2 * (1 + 1 + strlen(*optionVal) + 1) + 1;
-    char * option16 = malloc (optlen);
-
-    memset (option16, 0 , optlen);
-
-    //convert and store the values in hex format
-    snprintf(option16, 11, "0x%08X", enterprise_number);
-
-    //append null
-    snprintf(temp, 3, "%02X", '\0');
-    strncat(option16,temp,3);
-
-    int data_field_length = (int)strlen(*optionVal+enterprise_number_len);
-
-    //append length of data_field_length+null
-    sprintf(temp, "%02X", (data_field_length+1));
-    strncat(option16,temp,3);
-
-    for(int i=0; i<=data_field_length; i++)
-    {
-        snprintf(temp, 3, "%02X", (*optionVal)[enterprise_number_len+i]);
-        strncat(option16,temp,3);
-    }
-    free(*optionVal);
-    *optionVal = option16;
-
-    return;
-}
-
 /*
  * dibbler_client_prepare_config ()
  * @description: This function will construct conf file to configure dibbler-client
@@ -155,149 +108,149 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
         return FAILURE;
     }
 
-    FILE * fin;
-    FILE * fout;
-    char * line = NULL;
-    size_t len = 0;
-    ssize_t read;
-    bool optionTempFound = 0;
-    bool option20Found = 0;
-
-
-    DBG_PRINT("%s %d: \n", __FUNCTION__, __LINE__);
-    char args [BUFLEN_128] = {0};
-#ifdef FEATURE_MAPT
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
     char mapt_feature_enable[BUFLEN_16] = {0};
 #endif
 
-    fout = fopen(DIBBLER_TEMPLATE_CONFIG_FILE, "wb");
-    fin = fopen(DIBBLER_TMP_CONFIG_FILE, "r");
-    if (fin == NULL || fout == NULL)
-    {
-        DBG_PRINT("%s %d: failed to open files %s %s\n", __FUNCTION__, __LINE__, DIBBLER_TEMPLATE_CONFIG_FILE, DIBBLER_TMP_CONFIG_FILE);
-	/* CID :256901 Resource leak (RESOURCE_LEAK) */
-	if(fin)
-        {
-            fclose(fin);
-        }
-	/* CID :256903: Resource leak (RESOURCE_LEAK) */
-	if(fout)
-        {
-            fclose(fout);
-        }
+    FILE * fout;
+    fout = fopen(DIBBLER_TMP_CONFIG_FILE, "w+");
 
+    if (fout == NULL)
+    {
+        DBG_PRINT("%s %d: unable to open tmp file: %s\n", __FUNCTION__, __LINE__, DIBBLER_TMP_CONFIG_FILE);
         return FAILURE;
     }
 
-    while ((read = getline(&line, &len, fin)) != -1)
+    char buff[BUFLEN_128] = {0};
+    // write common config
+    snprintf(buff, sizeof(buff), "script \"%s\"\n", DIBBLER_SCRIPT_FILE);
+    fputs(buff, fout);
+    fputs(DIBBLER_LOG_CONFIG, fout);
+    fputs(DIBBLER_DUID_LL_CONFIG, fout);
+
+
+    // interface specific config
+    snprintf(buff, sizeof(buff), "iface %s {\n", param->ifname);
+    fputs(buff, fout);
+
+    bool option20Found = 0;
+    dhcp_opt_list * opt_list = NULL;
+    char args [BUFLEN_128] = {0};
+
+    if (param->ifType == WAN_LOCAL_IFACE)
     {
-        if (strstr(line, "iface "))
+        // request option
+        opt_list = req_opt_list;
+        while (opt_list)
         {
-            memset (&args, 0, sizeof(args));
-            snprintf (args, sizeof(args), "\niface %s {\n", param->ifname);
-            fputs(args, fout);
-            continue;
-        }
-        if (param->ifType == WAN_LOCAL_IFACE)
-        {
-            // configuration options for local interface
-            if (strstr(line, "option"))
+            memset (&args, 0, BUFLEN_128);
+
+            if (opt_list->dhcp_opt == DHCPV6_OPT_5)
             {
-                if (!optionTempFound)
+                snprintf (args, BUFLEN_128, "\n\t%s \n", "ia");
+                fputs(args, fout);
+            }
+            else if (opt_list->dhcp_opt == DHCPV6_OPT_23)
+            {
+                snprintf (args, BUFLEN_128, "\n\t%s \n", "option dns-server");
+                fputs(args, fout);
+            }
+            else if (opt_list->dhcp_opt == DHCPV6_OPT_25)
+            {
+                snprintf (args, BUFLEN_128, "\n\t%s \n", "pd");
+                fputs(args, fout);
+            }
+            else if (opt_list->dhcp_opt == DHCPV6_OPT_24)
+            {
+                snprintf (args, BUFLEN_128, "\n\t%s \n", "option domain");
+                fputs(args, fout);
+            }
+            else if (opt_list->dhcp_opt == DHCPV6_OPT_95)
+            {
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
+                if (syscfg_get(NULL, SYSCFG_MAPT_FEATURE_ENABLE, mapt_feature_enable, sizeof(mapt_feature_enable)) == 0)
                 {
-                    optionTempFound = 1;
-                    dhcp_opt_list * opt_list = req_opt_list;
-                    while (opt_list)
+                    if (strncmp(mapt_feature_enable, "true", 4) == 0)
                     {
-                        memset (&args, 0, BUFLEN_128);
-
-                        if (opt_list->dhcp_opt == DHCPV6_OPT_23)
-                        {
-                            snprintf (args, BUFLEN_128, "\n %s \n", "        option dns-server");
-                            fputs(args, fout);
-                        }
-                        else if (opt_list->dhcp_opt == DHCPV6_OPT_95)
-                        {
-#ifdef FEATURE_MAPT
-                            if (syscfg_get(NULL, SYSCFG_MAPT_FEATURE_ENABLE, mapt_feature_enable, sizeof(mapt_feature_enable)) == 0)
-                            {
-                                if (strncmp(mapt_feature_enable, "true", 4) == 0)
-                                {
 #endif
-                                    snprintf (args, BUFLEN_128, "\n        option 00%d hex \n", opt_list->dhcp_opt);
-                                    fputs(args, fout);
-#ifdef FEATURE_MAPT
-				}
-                            }
-#endif
-                        }
-                        else
-                        {
-                            snprintf (args, BUFLEN_128, "\n        option 00%d hex \n", opt_list->dhcp_opt);
-                            fputs(args, fout);
-                        }
-                        opt_list = opt_list->next;
+                        snprintf (args, BUFLEN_128, "\n\toption 00%d hex \n", opt_list->dhcp_opt);
+                        fputs(args, fout);
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
                     }
-
-                    //send option list
-                    opt_list = send_opt_list;
-                    while (opt_list)
-                    {
-                        memset (&args, 0, BUFLEN_128);
-
-                        if (opt_list->dhcp_opt == DHCPV6_OPT_16)
-                        {
-                            convert_option16_to_hex(&opt_list->dhcp_opt_val);
-                            snprintf (args, BUFLEN_128, "\n\toption 00%d hex %s\n", opt_list->dhcp_opt, opt_list->dhcp_opt_val);
-                            fputs(args, fout);
-                        }
-                        else if (opt_list->dhcp_opt == DHCPV6_OPT_15)
-                        {
-                            char str[32]={0};
-                            char option15[100]={0};
-                            char temp[16]={0};
-
-                            strncpy(str,opt_list->dhcp_opt_val,strlen(opt_list->dhcp_opt_val)+1);
-
-                            snprintf(temp, 8, "0x%04X",(int)strlen(str)+1);
-                            strncat(option15,temp,8);
-
-                            for(int i=0; i<(int)strlen(str)+1; i++)
-                            {
-                                snprintf(temp, 3, "%02X",str[i]);
-                                strncat(option15,temp,3);
-                            }
-
-                            snprintf (args, BUFLEN_128, "\n\toption 00%d hex %s\n", opt_list->dhcp_opt,option15 );
-                            fputs(args, fout);
-                        }
-                        else if (opt_list->dhcp_opt == DHCPV6_OPT_20)
-                        {
-                            option20Found = 1;
-                        }
-                        opt_list = opt_list->next;
-                    }
-
                 }
+#endif
+            }
+            else if (opt_list->dhcp_opt == DHCPV6_OPT_64)
+            {
+                fputs("\n\toption aftr\n", fout);
             }
             else
             {
-                fputs(line, fout);
+                snprintf (args, BUFLEN_128, "\n\toption 00%d hex \n", opt_list->dhcp_opt);
+                fputs(args, fout);
             }
+            opt_list = opt_list->next;
         }
+
+        //send option list
+        opt_list = send_opt_list;
+        while (opt_list)
+        {
+            memset (&args, 0, BUFLEN_128);
+            if (opt_list->dhcp_opt == DHCPV6_OPT_15)
+            {
+                char str[32]={0};
+                char option15[100]={0};
+                char temp[16]={0};
+
+                strncpy(str,opt_list->dhcp_opt_val,strlen(opt_list->dhcp_opt_val)+1);
+
+                snprintf(temp, 8, "0x%04X",(int)strlen(str)+1);
+                strncat(option15,temp,8);
+
+                for(int i=0; i<(int)strlen(str)+1; i++)
+                {
+                    snprintf(temp, 3, "%02X",str[i]);
+                    strncat(option15,temp,3);
+                }
+
+                snprintf (args, BUFLEN_128, "\n\toption 00%d hex %s\n", opt_list->dhcp_opt,option15 );
+                fputs(args, fout);
+            }
+            else if (opt_list->dhcp_opt == DHCPV6_OPT_20)
+            {
+                option20Found = 1;
+            }
+            else if (opt_list->dhcp_opt == DHCPV6_OPT_25)
+            {
+                snprintf (args, sizeof(args), "\n\tpd  %s\n", opt_list->dhcp_opt_val);
+                fputs(args, fout);
+            }
+            else if (opt_list->dhcp_opt_val != NULL)
+            {
+                snprintf (args, sizeof(args), "\n\toption 00%d hex %s\n", opt_list->dhcp_opt, opt_list->dhcp_opt_val);
+                fputs(args, fout);
+            }
+            else
+            {
+                snprintf (args, BUFLEN_128, "\n\toption 00%d hex \n", opt_list->dhcp_opt);
+                fputs(args, fout);
+            }
+            opt_list = opt_list->next;
+        }
+
     }
+
+    fputs("\n}", fout);
+    fputs("skip-confirm\n", fout);
+    fputs("downlink-prefix-ifaces \"brlan0\"\n", fout);
+
     if(option20Found)
     {
         snprintf (args, BUFLEN_128, "\n%s\n", "reconfigure-accept 1");
         fputs(args, fout);
     }
-
-    fclose(fin);
     fclose(fout);
-    if (line)
-    {
-        free(line);
-    }
 
     // write the config path into the buffer
     snprintf(client_info->config_path, sizeof(client_info->config_path), "%s%s", DIBBLER_DFT_PATH, param->ifname);
@@ -321,13 +274,15 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
         return FAILURE;
     }
 
-    if (copy_file (DIBBLER_TEMPLATE_CONFIG_FILE, file_path) != SUCCESS)
+    if (copy_file (DIBBLER_TMP_CONFIG_FILE, file_path) != SUCCESS)
     {
         DBG_PRINT("%s %d: unable to copy %s to %s due to %s\n", __FUNCTION__, __LINE__, DIBBLER_TEMPLATE_CONFIG_FILE, file_path, strerror(errno));
         return FAILURE;
     }
 
-    DBG_PRINT("%s %d: sucessfully Updated %s file with Request Options \n", __FUNCTION__, __LINE__, DIBBLER_TEMPLATE_CONFIG_FILE);
+    // dibber-client uses default config to generate DUID, so linking default file to tmp file
+    link (DIBBLER_TMP_CONFIG_FILE, DIBBLER_DEFAULT_CONFIG_FILE);
+
     return SUCCESS;
 
 }

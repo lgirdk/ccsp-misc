@@ -25,42 +25,6 @@
 #define DHCPV4_OPT_2  2  // time zone offset
 
 /*
- * ascii_to_hex ()
- * @description: returns allocated space with hex value of the input argument passed.
- * @params     : buff - buffer contents to convert to hex
- *               buff_len - length of input string
- * @return     : allocated memory containing the hex value of the buffer passed
- * NOTE        : free() required to clear allocated space this function allocates
- *
- */
-static char * ascii_to_hex (char * buff, int buff_len)
-{
-    if ((buff == NULL) || (buff_len == 0))
-    {
-        DBG_PRINT("Invalid args..\n");
-        return NULL;
-    }
-
-    int len = (buff_len * 2) + 1;
-    char * hex_buff = malloc (len);
-    if (hex_buff == NULL)
-    {
-        DBG_PRINT ("malloc() failure\n");
-        return NULL;
-    }
-    memset (hex_buff, 0, len);
-
-    int i = 0;
-    for (i = 0; i < buff_len; i++)
-    {
-        sprintf(&hex_buff[i*2], "%02X", buff[i]);
-    }
-
-    return hex_buff;
-
-}
-
-/*
  * udhcpc_get_req_options ()
  * @description: This function will construct a buffer with all the udhcpc REQUEST options
  * @params     : buff - output buffer to pass all REQUEST options
@@ -89,7 +53,7 @@ static int udhcpc_get_req_options (char * buff, dhcp_opt_list * req_opt_list)
     {
         memset (&args, 0, BUFLEN_16);
         if (req_opt_list->dhcp_opt == DHCPV4_OPT_2)
-	{
+	    {
             /* CID 189999 Calling risky function */
             snprintf(args, (BUFLEN_16-1),"-O timezone ");
         }
@@ -148,16 +112,19 @@ static int udhcpc_get_send_options (char * buff, dhcp_opt_list * send_opt_list)
         if (send_opt_list->dhcp_opt == DHCPV4_OPT_60)
         {
             // Option 60 - Vendor Class Identifier has udhcp cmd line arg "-V <option-str>"
-            snprintf (args, BUFLEN_128, "-V \"%s\" ", send_opt_list->dhcp_opt_val);
+            snprintf (args, BUFLEN_128, "-V %s ", send_opt_list->dhcp_opt_val);
         }
         else
         {
+/*
             char * buffer = ascii_to_hex (send_opt_list->dhcp_opt_val, strlen(send_opt_list->dhcp_opt_val));
             if (buffer != NULL)
             {
                 snprintf (args, BUFLEN_128, "-x 0x%02X:%s ", send_opt_list->dhcp_opt, buffer);
                 free(buffer);
             }
+*/
+            snprintf (args, BUFLEN_128, "-x 0x%02X:%s ", send_opt_list->dhcp_opt, send_opt_list->dhcp_opt_val);
         }
         send_opt_list = send_opt_list->next;
         /* CID 189996 Calling risky function */
@@ -359,6 +326,7 @@ int stop_udhcpc (dhcp_params * params)
         return FAILURE;
     }
 
+#ifdef UDHCPC_TX_RELEASE_ON_EXIT
 #if defined(_PLATFORM_RASPBERRYPI_)
     //In RPI, udhcpc is not getting terminated after sending unicast release packet with SIGUSR2, thus SIGTERM is used
     if (signal_process(pid, SIGTERM) != RETURN_OK)
@@ -369,6 +337,27 @@ int stop_udhcpc (dhcp_params * params)
         DBG_PRINT("%s %d: unable to send signal to pid %d\n", __FUNCTION__, __LINE__, pid);
         return FAILURE;
     }
+#else
+    /*TODO:
+     *Should be Removed once MAPT Unified and done in udhcp Demon to relase and kill Demon on SIGUSR2.
+     */
+    if (params->is_release_required)
+    {
+        if (signal_process(pid, SIGUSR2) != RETURN_OK)
+        {
+            DBG_PRINT("%s %d: unable to send signal to pid %d\n", __FUNCTION__, __LINE__, pid);
+            return FAILURE;
+        }
+        DBG_PRINT("%s %d: Successfully Relased V4 IP Address %d\n", __FUNCTION__, __LINE__, pid);
+    }
+    sleep(1);
+    if (signal_process(pid, SIGTERM) != RETURN_OK)
+    {
+        DBG_PRINT("%s %d: unable to send signal to pid %d\n", __FUNCTION__, __LINE__, pid);
+        return FAILURE;
+    }
+    DBG_PRINT("%s %d: Successfully Exited V4 Demon %d\n", __FUNCTION__, __LINE__, pid);
+#endif  // UDHCPC_TX_RELEASE_ON_EXIT 
 
     return collect_waiting_process(pid, UDHCPC_TERMINATE_TIMEOUT);
 
