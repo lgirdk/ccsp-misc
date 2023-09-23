@@ -301,7 +301,12 @@ int stop_udhcpc (dhcp_params * params)
         return FAILURE;
     }
 
+#if defined(_PLATFORM_RASPBERRYPI_)
+    //In RPI, udhcpc is not getting terminated after sending unicast release packet with SIGUSR2, thus SIGTERM is used
+    if (signal_process(pid, SIGTERM) != RETURN_OK)
+#else
     if (signal_process(pid, (params->is_release_required)?(SIGUSR2):(SIGTERM)) != RETURN_OK)
+#endif
     {
         DBG_PRINT("%s %d: unable to send signal to pid %d\n", __FUNCTION__, __LINE__, pid);
         return FAILURE;
