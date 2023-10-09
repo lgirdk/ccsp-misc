@@ -95,6 +95,15 @@ esac],[RDKSCHEDULER_TESTAPP_ENABLE=false])
 AM_CONDITIONAL([RDKSCHEDULER_TESTAPP_ENABLE], [test x$RDKSCHEDULER_TESTAPP_ENABLE = xtrue])
 
 
+AC_ARG_ENABLE([socketExampleEnable],
+[  --enable-socketExampleEnable    Turn on socketExampleEnable],
+[case "${enableval}" in
+  yes) SOCKET_EXAMPLE_ENABLE=true ;;
+  no)  SOCKET_EXAMPLE_ENABLE=false ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-socketExampleEnable]) ;;
+esac],[SOCKET_EXAMPLE_ENABLE=false])
+AM_CONDITIONAL([SOCKET_EXAMPLE_ENABLE], [test x$SOCKET_EXAMPLE_ENABLE = xtrue])
+
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -141,6 +150,8 @@ AM_COND_IF([WEBCFG_TESTAPP_ENABLE], [AC_CONFIG_FILES([source/wbCfgTestDaemon/Mak
 AM_COND_IF([BRIDGE_UTILS_BIN_ENABLE], [AC_CONFIG_FILES([source/bridge_utils/bridge_utils_bin/Makefile] [source/bridge_utils/Makefile] )])
 
 AM_COND_IF([RDKSCHEDULER_TESTAPP_ENABLE], [AC_CONFIG_FILES([source/RdkSchdeuler_TestApp/Makefile])])
+
+AM_COND_IF([SOCKET_EXAMPLE_ENABLE], [AC_CONFIG_FILES([source/Socket_Example/Makefile])])
 
 AC_SUBST(GTEST_ENABLE_FLAG)
 
