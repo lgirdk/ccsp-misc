@@ -137,6 +137,56 @@ if [ "xcompleted" != "x`syscfg get psm_migration`" ];then
 
 		migrationCompleteFlag=1
 	fi
+
+        if [ "$MODEL_NUM" = "CGA4332COM" ];then
+                rm -rf "$MIGRATION_FILE"
+                psmcli set dmsb.l2net.1.Members.SW ""
+                psmcli set dmsb.l2net.1.Members.Moca "moca0"
+                psmcli set dmsb.l2net.1.Members.Eth "eth0 eth1 eth2 eth3"
+                psmcli set dmsb.l2net.1.Members.WiFi "wl0 wl1"
+                psmcli set dmsb.l2net.1.Port.6.Name "wl0"
+                psmcli set dmsb.l2net.1.Port.6.LinkName "wl0"
+
+                for i in 1 2 3 4 5 6 7 8
+                do
+                        psmcli set dmsb.l2net."$i".Members.Link ""
+                done
+                psmcli set dmsb.l2net.1.Port.7.Name "wl1"
+                psmcli set dmsb.l2net.1.Port.7.LinkName "wl1"
+                psmcli set dmsb.l2net.1.Port.8.Name "eth1"
+                psmcli set dmsb.l2net.1.Port.8.LinkName "eth1"
+                psmcli set dmsb.l2net.1.Port.9.LinkName ""
+                psmcli set dmsb.l2net.2.Members.WiFi "wl0.1 wl1.1"
+                psmcli set dmsb.l2net.2.Port.2.Name "eth1"
+                psmcli set dmsb.l2net.2.Port.2.LinkName "eth1"
+                psmcli set dmsb.l2net.2.Port.3.Name "wl0.1"
+                psmcli set dmsb.l2net.2.Port.3.LinkName "wl0.1"
+                psmcli set dmsb.l2net.3.Members.WiFi "wl0.2"
+                psmcli set dmsb.l2net.3.Port.2.Name "wl0.2"
+                psmcli set dmsb.l2net.3.Port.2.LinkName "wl0.2"
+                psmcli set dmsb.l2net.4.Members.WiFi "wl1.2"
+                psmcli set dmsb.l2net.4.Port.2.Name "wl1.2"
+                psmcli set dmsb.l2net.4.Port.2.LinkName "wl1.2"
+                psmcli set dmsb.l2net.7.Members.WiF "wl0.4"
+                psmcli set dmsb.l2net.7.Port.2.Name "wl0.4"
+                psmcli set dmsb.l2net.7.Port.2.LinkName "wl0.4"
+                psmcli set dmsb.l2net.8.Members.WiFi "wl1.4"
+                psmcli set dmsb.l2net.8.Port.2.Name "wl1.4"
+                psmcli set dmsb.l2net.8.Port.2.LinkName "wl1.4"
+                psmcli set dmsb.l2net.5.Name "brlan7"
+                psmcli set dmsb.l2net.5.Vid "107"
+                psmcli set dmsb.l2net.5.Members.WiFi "wl0.7 wl1.7"
+                psmcli set dmsb.l2net.5.Port.1.Pvid "107"
+                psmcli set dmsb.l2net.5.Port.1.Name "brlan7"
+                psmcli set dmsb.l2net.5.Port.2.Name "wl0.7"
+                psmcli set dmsb.l2net.5.Port.2.LinkName "wl0.7"
+                psmcli set dmsb.l2net.5.Port.3.Pvid "107"
+                psmcli set dmsb.l2net.5.Port.3.Name "wl1.7"
+                psmcli set dmsb.l2net.5.Port.3.LinkName "wl1.7"
+
+                migrationCompleteFlag=1
+        fi
+
 	if [ "$migrationCompleteFlag" -eq 1 ];then
 		syscfg set psm_migration "completed"
                 syscfg commit
