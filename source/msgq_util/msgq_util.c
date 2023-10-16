@@ -251,7 +251,17 @@ printf ("\n GM_EVENT_GRE_TUNNEL_ACTIVE = 4 \n");
         event_t.Event = eventtype;
         if (argv[2] && (argc >=3))
         {
-            strncpy(event_t.msg,argv[2],sizeof(event_t.msg) - 1);
+	    /* CID 337762 Buffer not null terminated */
+	    if( strlen(argv[2]) < (MAX_MSGDATA_SIZE -1))
+	    {
+                strncpy(event_t.msg, argv[2], sizeof(event_t.msg) - 1);
+                event_t.msg[sizeof(event_t.msg) - 1] = '\0';
+	    }
+	    else
+	    {
+	        printf("%s failed to copy  argv[2] %s !\n", __func__,argv[2]);
+		event_t.msg[0] = '\0';
+	    }
         }
 
         SendmsgToQ(qname,&event_t);

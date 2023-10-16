@@ -47,12 +47,32 @@ void test_json_schedule( char* json_path, char* key)
 
     fseek(file, 0, SEEK_END);
     long file_size = ftell(file);
+    /* CID 347146 Argument cannot be negative */
+    if(file_size < 0)
+    {
+        printf("File size error \n");
+	fclose(file);
+	return;
+    }
+
     fseek(file, 0, SEEK_SET);
 
     char *json_data = (char *)malloc(file_size + 1);
-    fread(json_data, 1, file_size, file);
-    json_data[file_size] = '\0';
-    fclose(file);
+
+    /* CID 347147 Ignoring number of bytes */
+    int num_read = 0;
+    if( ( num_read = fread(json_data, 1, file_size, file)) > 0 )
+    {
+        json_data[file_size] = '\0';
+        fclose(file);
+    }
+    else
+    {
+        printf("fread failed \n");
+        fclose(file);
+        free(json_data);
+        return;
+    }
 
     // Parse the JSON data
     cJSON *json = cJSON_Parse(json_data);
@@ -282,7 +302,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    SchedulerData data[5];
     char* json_filepath_1 = NULL;
     char* json_filepath_2 = NULL;
     char* json_filepath_3 = NULL;
@@ -290,6 +309,15 @@ int main(int argc, char *argv[]) {
     char* json_filepath_5 = NULL;
 
     int data_size = 0;
+
+    /* CID 347148 Uninitialized pointer read fix */
+    SchedulerData data[5] = {
+	                    {NULL, NULL, NULL, schedule_operation_1, 0, 0},
+			    {NULL, NULL, NULL, schedule_operation_1, 0, 0},
+			    {NULL, NULL, NULL, schedule_operation_1, 0, 0},
+			    {NULL, NULL, NULL, schedule_operation_1, 0, 0},
+			    {NULL, NULL, NULL, schedule_operation_1, 0, 0}
+                            };
     
     printf("Component main getting executed\n");
 

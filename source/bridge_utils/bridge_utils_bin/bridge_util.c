@@ -1431,7 +1431,15 @@ OVSACTION:
 	    				pGwConfig->vlan_id = vlanId ;
 					if ( bridgeInfo->VirtualParentIfname[0] != '\0' )
 					{
-						strncpy(pGwConfig->parent_ifname,bridgeInfo->VirtualParentIfname,sizeof(pGwConfig->parent_ifname)-1);
+						/* CID 339902: String not null terminated */
+						if (strlen(bridgeInfo->VirtualParentIfname) < MAX_IF_NAME_SIZE )
+						{
+						    strncpy(pGwConfig->parent_ifname,bridgeInfo->VirtualParentIfname,sizeof(pGwConfig->parent_ifname)-1);
+						}
+						else
+						{
+						    printf("%s failed to copy VirtualParentIfname %s !\n", __func__,bridgeInfo->VirtualParentIfname);
+						}
 						strncpy(pGwConfig->if_name,token,sizeof(pGwConfig->if_name)-1);
 					}
 					else

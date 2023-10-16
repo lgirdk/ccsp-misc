@@ -113,11 +113,17 @@ void print_msgpack_object(FILE* fp, msgpack_object obj)
             {
                 size_t offset = 0;
                 msgpack_unpacked msg;
+		msgpack_unpack_return unpack_ret;
 
                 msgpack_unpacked_init( &msg );
 
                 /* The outermost wrapper MUST be a map. */
-                msgpack_unpack_next( &msg, (const char*) obj.via.str.ptr, obj.via.str.size, &offset );
+		/*  CID 280995 Unchecked return value */
+                unpack_ret = msgpack_unpack_next( &msg, (const char*) obj.via.str.ptr, obj.via.str.size, &offset );
+	        if( MSGPACK_UNPACK_SUCCESS != unpack_ret )
+	        {
+	            printf("Message Pack decode failed with error: %d\n", unpack_ret);
+	        }
 
                 msgpack_object* p = &msg.data;
                 print_msgpack_object(fp, *p);
@@ -810,7 +816,11 @@ void cli_subdoc_parser(char *ptr, int no_of_bytes)
 			index2 = ptr_lb1-str_body;
 			index1 = ptr_lb-str_body;
 			cli_line_parser(str_body+index1+1,index2 - index1 - 2, &name_space, &etag, &data, &data_size);
-			ptr_lb++;
+			/* CID 280264: Dereference null return value */
+			if(ptr_lb != NULL)
+			{
+			    ptr_lb++;
+			}
 			ptr_lb = memchr(ptr_lb, '\n', no_of_bytes - (ptr_lb - str_body));
 			count++;
 		}
@@ -830,11 +840,17 @@ void cli_subdoc_parser(char *ptr, int no_of_bytes)
 	    printf("The Etag version is %lu\n",(long)etag);
             size_t offset = 0;
 	    msgpack_unpacked msg;
+	    msgpack_unpack_return unpack_ret;
 
             msgpack_unpacked_init( &msg );
 
             /* The outermost wrapper MUST be a map. */
-            msgpack_unpack_next( &msg, (const char*) data, data_size, &offset );
+	    /* CID 280997 Unchecked return value */
+            unpack_ret = msgpack_unpack_next( &msg, (const char*) data, data_size, &offset );
+	    if( MSGPACK_UNPACK_SUCCESS != unpack_ret )
+	    {
+	        printf("Message Pack decode failed with error: %d\n", unpack_ret);
+	    }
 	    msgpack_object obj = msg.data;
             print_msgpack_object(stdout, obj);
 	    //printf("\n\n\nMSGPACK_OBJECT_MAP is %d  msg.data.type %d unpack ret %d\n\n", MSGPACK_OBJECT_MAP, msg.data.type, mp_rv);
@@ -899,6 +915,12 @@ int cli_parseMultipartDocument(void *config_data, char *ct , size_t data_size)
 		while((ptr_counter - str_body) < (int)data_size )
 		{
 			ptr_counter = memchr(ptr_counter, '-', data_size - (ptr_counter - str_body));
+			/* CID 280258 Dereference null return value */
+			if(ptr_counter == NULL)
+			{
+			    break;
+			}
+
 			if(0 == memcmp(ptr_counter, last_line_boundary, strlen(last_line_boundary)))
 			{
 				part_count++;
