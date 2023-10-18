@@ -36,7 +36,7 @@
 #include <sys/types.h>
 #include<sys/ioctl.h>
 #include<errno.h>
-#include "linux/if.h"
+//#include "linux/if.h"
 #include "linux/sockios.h"
 
 #include <ccsp_base_api.h>   // for CCSP_Message_Bus_Init/Exit

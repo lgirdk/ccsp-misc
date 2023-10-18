@@ -21,23 +21,34 @@
 #include "bridge_util_generic.h"
 #include "bridge_creation.h"
 #include <unistd.h>
+#include <stdint.h>
 #include "cap.h"
 #include "secure_wrapper.h"
 #include <sys/stat.h>
+#include <arpa/inet.h>
 #ifdef INCLUDE_BREAKPAD
 #include "breakpad_wrapper.h"
+#endif
+#ifdef CORE_NET_LIB
+#include <libnet.h>
+#else
+#include "linux/if.h"
 #endif
 #define ONEWIFI_ENABLED "/etc/onewifi_enabled"
 #define OPENVSWITCH_LOADED "/sys/module/openvswitch"
 #define WFO_ENABLED        "/etc/WFO_enabled"
-
+#define DEFAULT_NETMASK_ADDR "255.255.255.0"
+#define BRCTL_INTERACT_ENABLE_FILE "/var/tmp/brctl_interact_enable.txt"
+#define isValidSubnetByte(byte) (((byte == 255) || (byte == 254) || (byte == 252) || \
+                                  (byte == 248) || (byte == 240) || (byte == 224) || \
+                                  (byte == 192) || (byte == 128)) ? 1 : 0)
 static char *component_id = "ccsp.bridgeUtils";
 static char *pCfg 	= CCSP_MSG_BUS_CFG;
 static void  *bus_handle  = NULL;
 static cap_user   appcaps;
 
 int InstanceNumber = 0; 
-int DeviceMode = 0, ovsEnable = 0 , bridgeUtilEnable = 0 , skipWiFi=0 , skipMoCA = 0 , ethWanEnabled =0 , PORT2ENABLE = 0, eb_enable = 0; // router = 0, bridge = 2
+int DeviceMode = 0,ovsEnable = 0 , bridgeUtilEnable = 0 , skipWiFi=0 , skipMoCA = 0 , ethWanEnabled =0 , PORT2ENABLE = 0, eb_enable = 0; // router = 0, bridge = 2
 int wan_mode = 0;
 #ifdef RDKB_EXTENDER_ENABLED
 int DeviceNetworkingMode = DEVICE_NETWORKINGMODE_ROUTER; // 0 is router, 1 is extender.
@@ -122,6 +133,79 @@ static InterfaceMap_t InterfaceMap[] =
 
 br_shm_mutex brmutex;
 
+
+void subnet(char *ipv4Addr, char *ipv4Subnet, char *subnet)
+{
+    int l_iFirstByte, l_iSecondByte, l_iThirdByte, l_iFourthByte;
+    int l_iFirstByteSub, l_iSecondByteSub, l_iThirdByteSub, l_iFourthByteSub;
+
+    sscanf(ipv4Addr, "%d.%d.%d.%d", &l_iFirstByte, &l_iSecondByte, 
+           &l_iThirdByte, &l_iFourthByte);
+
+    sscanf(ipv4Subnet, "%d.%d.%d.%d", &l_iFirstByteSub, &l_iSecondByteSub, 
+           &l_iThirdByteSub, &l_iFourthByteSub);
+
+    l_iFirstByte = l_iFirstByte & l_iFirstByteSub;
+    l_iSecondByte = l_iSecondByte & l_iSecondByteSub;
+    l_iThirdByte = l_iThirdByte & l_iThirdByteSub;
+    l_iFourthByte = l_iFourthByte & l_iFourthByteSub;
+
+    snprintf(subnet, 16, "%d.%d.%d.%d", l_iFirstByte, 
+             l_iSecondByte, l_iThirdByte, l_iFourthByte);
+}
+unsigned int countSetBits(int byte)
+{
+    unsigned int l_iCount = 0;
+    if (isValidSubnetByte(byte) || 0 == byte)
+    {
+        while (byte)
+        {
+            byte &= (byte-1);
+            l_iCount++;
+        }
+        return l_iCount;
+    }
+    else
+    {
+        bridge_util_log("Invalid subnet byte:%d\n", byte);
+        return 0;
+    }
+}
+
+unsigned int mask2cidr(char *subnetMask)
+{
+    int l_iFirstByte, l_iSecondByte, l_iThirdByte, l_iFourthByte;
+    int l_iCIDR = 0;
+
+    sscanf(subnetMask, "%d.%d.%d.%d", &l_iFirstByte, &l_iSecondByte,
+            &l_iThirdByte, &l_iFourthByte);
+
+    l_iCIDR += countSetBits(l_iFirstByte);
+    l_iCIDR += countSetBits(l_iSecondByte);
+    l_iCIDR += countSetBits(l_iThirdByte);
+    l_iCIDR += countSetBits(l_iFourthByte);
+    return l_iCIDR;
+}
+/***********************************************************************
+ * broad cast address set API
+***********************************************************************/
+#ifdef CORE_NET_LIB
+void Set_Broadcast_address(char IfName[],char subnetmask[],char IpAddr[])
+{
+	int l_iCIDR;
+	char l_cSubnet[16] = {0};
+	char bcast[INET_ADDRSTRLEN];
+	char Cmd[255] = {0};
+
+	l_iCIDR = mask2cidr(subnetmask);
+	subnet(IpAddr, subnetmask, l_cSubnet);
+    bridge_util_log("%s Adding IP routes\n",__FUNCTION__);
+	addr_derive_broadcast(IpAddr, l_iCIDR, bcast, INET_ADDRSTRLEN);
+	snprintf(Cmd, sizeof(Cmd),"%s/%d broadcast %s dev %s",IpAddr, l_iCIDR, bcast, IfName);
+    addr_add(Cmd);
+    bridge_util_log("%s cmd: %s\n",__func__,Cmd);
+}
+#endif
 /*********************************************************************************************
 
     caller:  main
@@ -282,6 +366,7 @@ int checkIfExistsInBridge(char* iface_name, char *bridge_name)
 	int ret =0;
 	char *token = NULL;
 	char if_list[IFLIST_SIZE] = {'\0'};
+#if !defined(USE_LINUX_BRIDGE)
 	if ( 1 == ovsEnable )
 	{
 		fp = v_secure_popen("r","ovs-vsctl list-ifaces %s | grep %s | tr '\n' ' ' ",bridge_name, iface_name);
@@ -290,6 +375,9 @@ int checkIfExistsInBridge(char* iface_name, char *bridge_name)
 	{
 		fp = v_secure_popen("r","brctl show %s | sed '1d' | awk '{print $NF}' | grep %s | tr '\n' ' ' ",bridge_name, iface_name);
 	}
+#else
+	fp = v_secure_popen("r","brctl show %s | sed '1d' | awk '{print $NF}' | grep %s | tr '\n' ' ' ",bridge_name, iface_name);
+#endif
 	if ( fp != NULL )
 	{
 		fgets(if_list,IFLIST_SIZE-1,fp);
@@ -417,9 +505,9 @@ void enableMoCaIsolationSettings (bridgeDetails *bridgeInfo)
 	int retPsmGet = CCSP_SUCCESS;
 	char *paramValue = NULL;
         int ret = 0;
-	char ipaddr[64] = {0} ;
+	char ipaddr[32] = {0} ;
 	int  mocaIsolationL3NetIdx = 0;  
-
+	char subNetMask[64];
 	snprintf(paramName,sizeof(paramName), mocaIsolationL3Net);
 	retPsmGet = PSM_Get_Record_Value2(bus_handle,g_Subsystem, paramName, NULL, &paramValue);
 	if (retPsmGet == CCSP_SUCCESS) 
@@ -475,13 +563,69 @@ void enableMoCaIsolationSettings (bridgeDetails *bridgeInfo)
 		}
 
 	}
-    	else
-    	{
-    		bridge_util_log("%s: psm call failed for %s, ret code %d\n", __func__, paramName, retPsmGet);
+    else
+    {
+    	bridge_util_log("%s: psm call failed for %s, ret code %d\n", __func__, paramName, retPsmGet);
 
-    	}
+    }
+	memset(paramName,0,sizeof(paramName));
+    snprintf(paramName,sizeof(paramName), l3netSubnetMask,mocaIsolationL3NetIdx);
+    retPsmGet = PSM_Get_Record_Value2(bus_handle,g_Subsystem, paramName, NULL, &paramValue);
+    if (retPsmGet == CCSP_SUCCESS)
+    {
+        bridge_util_log("%s: %s returned %s\n", __func__, paramName, paramValue);
+	if(paramValue[0]!='\0')
+	{
+           strncpy(subNetMask,paramValue,sizeof(subNetMask)-1);
+	}
+	else
+	{
+           strncpy(subNetMask,DEFAULT_NETMASK_ADDR,sizeof(subNetMask)-1);
+	}
+		if(bus_handle != NULL)
+		{
+        	((CCSP_MESSAGE_BUS_INFO *)bus_handle)->freefunc(paramValue);
+        	paramValue = NULL;
+		}
+    }
+    else
+    {
+        bridge_util_log("%s: psm call failed for %s, ret code %d\n", __func__, paramName, retPsmGet);
+    }
 
-	ret = v_secure_system("ip link set %s allmulticast on ;\
+	#ifdef CORE_NET_LIB
+		libnet_status status;
+		bridge_util_log("%s bridge name :%s ipaddr:%s subNetMask:%s using core net lib\n",__func__,bridgeInfo->bridgeName,ipaddr,subNetMask);
+		Set_Broadcast_address(bridgeInfo->bridgeName,subNetMask,ipaddr);
+		interface_set_allmulticast(bridgeInfo->bridgeName);
+		interface_set_ip(bridgeInfo->bridgeName,ipaddr);
+		//interface_get_netmask(bridgeInfo->bridgeName,subNetMask);
+		status=interface_up(bridgeInfo->bridgeName);
+		if(status==CNL_STATUS_FAILURE)
+		{
+			bridge_util_log("Failure to set interface_up:%s\n",bridgeInfo->bridgeName);
+		}
+
+		ret=v_secure_system("echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ;\
+				sysctl -w net.ipv4.conf.all.arp_announce=3 ;");
+		if(ret !=0)
+		{
+			bridge_util_log("Failed in exceuting the command via v_secure_system() ret %d\n",ret);
+		}
+		char buf[128];
+		snprintf(buf,sizeof(buf),"from all iif %s lookup all_lans",bridgeInfo->bridgeName);
+		rule_add(buf);
+		ret= v_secure_system("echo 0 > /proc/sys/net/ipv4/conf/'%s'/rp_filter ;\
+				touch %s ",
+				bridgeInfo->bridgeName,
+				LOCAL_MOCABR_UP_FILE);
+		if(ret !=0)
+		{
+			bridge_util_log("Failed in exceuting the command via v_secure_system() ret %d\n",ret);
+		}
+	#else
+		bridge_util_log("%s bridge name :%s ipaddr:%s \n",__func__,bridgeInfo->bridgeName,ipaddr);
+		ret = v_secure_system("ip link set %s allmulticast on ;\
 	    	ifconfig %s %s ; \
 	    	ip link set %s up ; \
 	    	echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ; \
@@ -501,7 +645,8 @@ void enableMoCaIsolationSettings (bridgeDetails *bridgeInfo)
         {
                 bridge_util_log("Failed in exceuting the command via v_secure_system() ret %d\n",ret);
         }
-  
+
+	#endif
 	return;
 }
 
@@ -528,13 +673,25 @@ void enableMoCaIsolationSettings (bridgeDetails *bridgeInfo)
 
 void disableMoCaIsolationSettings (bridgeDetails *bridgeInfo)
 {
+	
+#ifdef CORE_NET_LIB
+	libnet_status status;
+	bridge_util_log("%s interface down using core net lib api: %s \n",__FUNCTION__,bridgeInfo->bridgeName);
+	status=interface_down(bridgeInfo->bridgeName);
+	if(status==CNL_STATUS_FAILURE)
+	{
+		 bridge_util_log("Failed to set interface %s down\n",bridgeInfo->bridgeName);
+	}
+#else
 	int ret =0;
-        ret = v_secure_system("ip link set %s down",bridgeInfo->bridgeName);
-        if(ret != 0)
-        {
-            bridge_util_log("Failed in executing the command via v_secure_system ret val: %d \n",ret);
-        }
-
+  	bridge_util_log("%s interface down : %s \n",__FUNCTION__,bridgeInfo->bridgeName);
+   ret = v_secure_system("ip link set %s down",bridgeInfo->bridgeName);
+    if(ret != 0)
+    {
+        bridge_util_log("Failed in executing the command via v_secure_system ret val: %d \n",ret);
+    }
+	
+#endif
 }
 
 
@@ -560,23 +717,37 @@ void disableMoCaIsolationSettings (bridgeDetails *bridgeInfo)
     	return value : returns true when execution succesed otherwise it returns false
 ***********************************************************************************************/
 
-bool create_bridge_api(ovs_interact_request *request, ovs_interact_cb callback) 
+bool create_bridge_api(interact_request *request, ovs_interact_cb callback) 
 {
+
+#if !defined(USE_LINUX_BRIDGE)
+
 	if ( 1 == ovsEnable )
 	{
-		bridge_util_log("%s ovs is enabled, calling ovs api\n", __FUNCTION__ );
-		return (ovs_agent_api_interact(request,callback));
+		bridge_util_log("%s ovs is enabled, calling ovs api with USE_LINUX_BRIDGE \n", __FUNCTION__ );
+		return (ovs_agent_api_interact(&request->ovs_request,callback));
 	}
 	else
-	{	
+	{
 		if ( 1 == bridgeUtilEnable )
 		{
 			bridge_util_log("%s ovs is disabled, and bridgeUtilEnable is enabled calling brctl api's create bridge \n", __FUNCTION__ );
-			return (brctl_interact(request) );	
+			return (brctl_interact(request->gw_config) );	
 		}
 	}
+#else
+	if(callback==NULL)
+	{
+		bridge_util_log("callback is NULL\n"); 
+	}
+	bridge_util_log("%s ovs is disabled, calling linux api without USE_LINUX_BRIDGE \n", __FUNCTION__ );
+	if ( 1 == bridgeUtilEnable )
+	{
+		bridge_util_log("%s ovs is disabled, and bridgeUtilEnable is enabled calling brctl api's create bridge \n", __FUNCTION__ );
+		return (brctl_interact(request->gw_config) );	
+	}
+#endif
 	return false;
-
 }
 
 /*********************************************************************************************
@@ -921,6 +1092,7 @@ int HandlePreConfigGeneric(bridgeDetails *bridgeInfo,int InstanceNumber)
     	char* token = NULL; 
         int ret = 0;
     	char* rest = NULL; 
+	bridge_util_log("enter %s\n",__func__);
 		/* This is platform specific code to handle platform specific operation for given config pre bridge creation*/
 	switch(InstanceNumber)
 	{
@@ -1034,7 +1206,7 @@ void assignIpToBridge(char* bridgeName, char* l3netName)
     char paramName[256]={0};
     int retPsmGet = CCSP_SUCCESS;
     char *paramValue = NULL;
-    int ret = 0;
+    //int ret = 0;
     char ipaddr[64] = {0} ;
     char subNetMask[64] = {0};
     int L3NetIdx = 0;
@@ -1095,21 +1267,47 @@ void assignIpToBridge(char* bridgeName, char* l3netName)
 
     if(subNetMask[0] != '\0')
     {
+#ifdef CORE_NET_LIB
+		libnet_status status;
+		bridge_util_log("%s : Assigning Ip [%s] with default subnetmask [%s] to bridge [%s] using core net lib api \n",__FUNCTION__,ipaddr,subNetMask, bridgeName);
+		interface_set_ip(bridgeName,ipaddr);
+		Set_Broadcast_address(bridgeName,subNetMask,ipaddr);
+		status=interface_set_netmask(bridgeName,subNetMask);
+		if(status==CNL_STATUS_FAILURE)
+		{
+			bridge_util_log("Failure to set subNetMask:%s to bridge:%s\n",subNetMask,bridgeName);
+		}
+		status=interface_up(bridgeName);
+		if(status==CNL_STATUS_FAILURE)
+		{
+			bridge_util_log("Failure to set interface_up:%s\n",bridgeName);
+		}
+#else
+		int ret = 0;
         bridge_util_log("%s : Assigning Ip [%s] with default subnetmask [%s] to bridge [%s] \n",__FUNCTION__,ipaddr,subNetMask, bridgeName);
-        ret = v_secure_system("ifconfig %s %s netmask %s up",bridgeName,ipaddr, subNetMask);
+       ret = v_secure_system("ifconfig %s %s netmask %s up",bridgeName,ipaddr, subNetMask);
         if(ret != 0)
         {
             bridge_util_log("Failure in executing command via v_secure_system. ret val: %d \n", ret);
         }
+#endif
+
     }
     else
     {
         bridge_util_log("%s : Assigning Ip [%s] to bridge [%s] \n",__FUNCTION__,ipaddr,bridgeName);
-        ret = v_secure_system("ifconfig %s %s",bridgeName,ipaddr);
+        #ifdef CORE_NET_LIB
+		bridge_util_log("interface_set_ip using core net lib\n");
+		Set_Broadcast_address(bridgeName,DEFAULT_NETMASK_ADDR,ipaddr);
+		interface_set_ip(bridgeName,ipaddr);
+		#else
+		int ret = 0;
+		ret = v_secure_system("ifconfig %s %s",bridgeName,ipaddr);
         if(ret != 0)
         {
             bridge_util_log("Failure in executing command via v_secure_system. ret val: %d \n", ret);
         }
+		#endif
     }
     return;
 }
@@ -1238,6 +1436,33 @@ int HandlePostConfigGeneric(bridgeDetails *bridgeInfo,int InstanceNumber)
 		return 0;
 
 }
+/************************************************************
+ * Allocate mempry to the gateway config
+************************************************************/
+Gateway_Config *Allocate_mem_for_Gateway_Config()
+{
+	Gateway_Config *pGwConfig = NULL;
+	if ( 1 == bridgeUtilEnable )
+	{
+		if ((pGwConfig = (Gateway_Config *)malloc(sizeof(Gateway_Config))) != NULL)
+		{
+			memset(pGwConfig, 0, sizeof(Gateway_Config));
+            pGwConfig->if_cmd = OVS_IF_UP_CMD;
+			return pGwConfig;
+		}
+		else
+		{
+			bridge_util_log("%s :bridgeUtilEnabled, malloc to Gateway_Config failed\n",__FUNCTION__); 
+			return NULL;
+		}							
+	}
+	else
+	{
+		bridge_util_log("%s : OVS or bridgeUtil not enabled\n",__FUNCTION__); 
+		return NULL;
+	}		
+
+}
 
 
 /*********************************************************************************************
@@ -1271,16 +1496,19 @@ int updateBridgeInfo(bridgeDetails *bridgeInfo, char* ifNameToBeUpdated, int Opr
     	char tmp_buff[32] = {0} ;
 
 	int if_type = OVS_OTHER_IF_TYPE , vlanId = -1 ;
-	ovs_interact_request ovs_request = {0};
+	interact_request request = {0};
+	//ovs_interact_request ovs_request = {0};
     	Gateway_Config *pGwConfig = NULL;
 	bool retValue = false ;
     	char* token = NULL; 
     	char* rest = NULL; 
     	bool bridgeCreated = false;
     	bool interfaceExist=true;
-	ovs_request.block_mode = OVS_ENABLE_BLOCK_MODE ;
+#if !defined(USE_LINUX_BRIDGE)
+	request.ovs_request.block_mode = OVS_ENABLE_BLOCK_MODE ;
 
-	ovs_request.table_config.table.id = OVS_GW_CONFIG_TABLE;
+	request.ovs_request.table_config.table.id = OVS_GW_CONFIG_TABLE;
+#endif
 	switch(type)
 	{
 		case IF_BRIDGE_BRIDGEUTIL:
@@ -1366,8 +1594,30 @@ int updateBridgeInfo(bridgeDetails *bridgeInfo, char* ifNameToBeUpdated, int Opr
 	}
 
 		rest = IfList_Copy;
+        int retryCounter=0;
 
-        	int retryCounter=0;
+#if !defined(USE_LINUX_BRIDGE)
+		if(ovsEnable != 1)
+		{
+			if(pGwConfig==NULL)
+			{
+				pGwConfig=Allocate_mem_for_Gateway_Config();
+				if(pGwConfig==NULL)
+				{
+					return FAILED;
+				}
+            }
+		}	
+#else
+		if(pGwConfig==NULL)
+		{
+			pGwConfig=Allocate_mem_for_Gateway_Config();
+			if(pGwConfig==NULL)
+			{
+				return FAILED;
+			}
+        }
+#endif
 
 		while ((token = strtok_r(rest, " ", &rest))) 
 		{
@@ -1390,38 +1640,28 @@ int updateBridgeInfo(bridgeDetails *bridgeInfo, char* ifNameToBeUpdated, int Opr
             		if ( (ethWanEnabled) && ((if_type == OVS_ETH_IF_TYPE) || (if_type == OVS_VLAN_IF_TYPE) ) && ( strncmp(ethWanIfaceName,token,sizeof(ethWanIfaceName)-1) == 0 ))
                 		continue;
 OVSACTION:
+#if !defined(USE_LINUX_BRIDGE)
 			if ( 1 == ovsEnable )
 			{
 				if (!ovs_agent_api_get_config(OVS_GW_CONFIG_TABLE, (void **)&pGwConfig))
 				{
 					bridge_util_log("%s failed to allocate and initialize config\n", __FUNCTION__);
-				        return FAILED;
+				    return FAILED;
 				}
-                        }
-				else
+			}
+			else 
+			{
+				if(pGwConfig!=NULL)
 				{
-					if ( 1 == bridgeUtilEnable )
-					{
-						if ((pGwConfig = (Gateway_Config *)malloc(sizeof(Gateway_Config))) != NULL)
-					        {
-					               	memset(pGwConfig, 0, sizeof(Gateway_Config));
-                                            		pGwConfig->if_cmd = OVS_IF_UP_CMD;
-					        }
-					        else
-					        {
-					                bridge_util_log("%s :bridgeUtilEnabled, malloc to Gateway_Config failed\n",__FUNCTION__); 
-					                return FAILED;
-					       	}							
-					}
-					else
-					{
-						bridge_util_log("%s : OVS or bridgeUtil not enabled\n",__FUNCTION__); 
-
-						return FAILED;
-					}
-
-				}
-
+					memset(pGwConfig,0,sizeof(Gateway_Config));
+                }
+			}	
+#else
+			if(pGwConfig != NULL)
+			{
+				memset(pGwConfig,0,sizeof(Gateway_Config));
+        	}
+#endif
 
 				strncpy(pGwConfig->parent_bridge,bridgeInfo->bridgeName,sizeof(pGwConfig->parent_bridge)-1); ;
 
@@ -1459,13 +1699,17 @@ OVSACTION:
 					if(interfaceExist)
 						strncpy(pGwConfig->if_name,token,sizeof(pGwConfig->if_name)-1);
 				}
-				
-				ovs_request.table_config.config = (void *) pGwConfig;
 
-				bridge_util_log("%s : method is : %d  Mode is : %d , if_cmd is %d \n",__FUNCTION__,ovs_request.method,ovs_request.block_mode,pGwConfig->if_cmd);
-				bridge_util_log("%s : parent_ifname is %s : if_name is %s : bridge %s : vlan id is %d , if_type is %d: \n", __FUNCTION__,pGwConfig->parent_ifname,pGwConfig->if_name,pGwConfig->parent_bridge,pGwConfig->vlan_id,pGwConfig->if_type); 
-							
-				retValue = create_bridge_api(&ovs_request,NULL);
+				#if !defined(USE_LINUX_BRIDGE)
+				request.ovs_request.table_config.config = (void *) pGwConfig;
+				bridge_util_log("%s : method is : %d  Mode is : %d , if_cmd is %d \n",__FUNCTION__,request.ovs_request.method,request.ovs_request.block_mode,pGwConfig->if_cmd);
+				#endif
+				if( ( ovsEnable  == 0)&&(bridgeUtilEnable == 1 ))
+				{
+					request.gw_config=pGwConfig;
+					bridge_util_log("%s : parent_ifname is %s : if_name is %s : bridge %s : vlan id is %d , if_type is %d: \n", __FUNCTION__,pGwConfig->parent_ifname,pGwConfig->if_name,pGwConfig->parent_bridge,pGwConfig->vlan_id,pGwConfig->if_type); 
+				}
+				retValue = create_bridge_api(&request,NULL);
 				if ( retValue != true )
 				{
 					bridge_util_log("create_bridge_api call failed\n");
@@ -1481,8 +1725,27 @@ OVSACTION:
 					if(!bridgeCreated)
 						bridgeCreated=true;	
 				}
-
-		} 
+		}
+  #if !defined(USE_LINUX_BRIDGE)
+  	if ( ovsEnable != 1 )
+    {
+		if(pGwConfig!=NULL)
+		{
+			free(pGwConfig);
+			pGwConfig=NULL;
+			request.gw_config=NULL;
+			request.ovs_request.table_config.config=NULL;
+		}
+    }
+  #else
+  	if(pGwConfig!=NULL)
+	{
+		free(pGwConfig);
+		pGwConfig=NULL;
+		request.gw_config=NULL;
+		request.ovs_request.table_config.config=NULL;
+	}
+  #endif
     return 0;
 }
 
@@ -1510,6 +1773,7 @@ int CreateBrInterface()
 	char val[16] = {0} ;
         int bridgeCreated=0;
 	bridgeDetails *bridgeInfo = NULL;
+	bridge_util_log("enter %s\n",__func__);
 	bridgeInfo = (bridgeDetails*) malloc (sizeof(bridgeDetails));
 	if ( bridgeInfo == NULL )
 	{
@@ -1709,15 +1973,26 @@ void getCurrentIfList(char *bridge, char *current_if_list)
 {
         FILE *fp = NULL;
         int ret = 0;
-	if ( 1 == ovsEnable ) {
-	    fp = v_secure_popen("r","ovs-vsctl list-ifaces %s | tr '\n' ' ' ",bridge);
+#if !defined(USE_LINUX_BRIDGE)
+	if( 1 == ovsEnable )
+	{
+		fp = v_secure_popen("r","ovs-vsctl list-ifaces %s | tr '\n' ' ' ",bridge);
 	}
 	else if ( 1 == bridgeUtilEnable ) {
 	    fp = v_secure_popen("r","brctl show %s | sed '1d' | awk '{print $NF}' | tr '\n' ' ' ",bridge);
 	}
-	else {    
+	else 
+	{    
 	    return;
 	}
+#else
+	if ( 1 == bridgeUtilEnable ) {
+	    fp = v_secure_popen("r","brctl show %s | sed '1d' | awk '{print $NF}' | tr '\n' ' ' ",bridge);
+	}
+	else{
+		return;
+	}
+#endif
 	 if ( fp != NULL )
 	 {
 	 	fgets(current_if_list,TOTAL_IFLIST_SIZE-1,fp);
@@ -2375,11 +2650,14 @@ int ExitFunc()
 		fclose(logFp);
 	    	logFp= NULL;
 	}
+
 	    
+#if !defined(USE_LINUX_BRIDGE) 
 	if ( ovsEnable == 1 )
 	{
-    	   	ovs_agent_api_deinit();
-    	}
+    	ovs_agent_api_deinit();
+	}
+#endif
 	 	
 	if (br_shm_mutex_close(brmutex)) {
             unlink(BRIDGE_UTIL_RUNNING);
@@ -2451,7 +2729,7 @@ void getSettings()
 
         memset(buf,0,sizeof(buf));
 
-        if( 0 == syscfg_get( NULL, "mesh_ovs_enable", buf, sizeof( buf ) ) )
+       if( 0 == syscfg_get( NULL, "mesh_ovs_enable", buf, sizeof( buf ) ) )
         {
 	          if ( strcmp (buf,"true") == 0 )
 	            	ovsEnable = 1;
@@ -2681,18 +2959,20 @@ int bridgeUtils_main(int argc, char *argv[])
 		goto EXIT;
 
 	}
-		
+	
 	getSettings();
-		
-	if ( ( ovsEnable == 0) && ( bridgeUtilEnable == 0 ) )
+
+#if defined(USE_LINUX_BRIDGE)
+	if(bridgeUtilEnable == 0)
 	{
 		bridge_util_log(" OVS and Bridge utils are not enabled, exiting\n");
 		rc = -1;
 		goto EXIT;
 
 	}
-
-	if ( ovsEnable == 1 )
+#endif
+#if !defined(USE_LINUX_BRIDGE)
+	if ( 1 == ovsEnable )
 	{
 		if (!ovs_agent_api_init(OVS_BRIDGE_UTILS_COMPONENT_ID))
 		{
@@ -2700,7 +2980,14 @@ int bridgeUtils_main(int argc, char *argv[])
 			goto EXIT;
 		}
 	}
+	else if( ( ovsEnable  == 0)&&(bridgeUtilEnable == 0 ))
+	{
+		bridge_util_log(" OVS and Bridge utils are not enabled, exiting\n");
+		rc = -1;
+		goto EXIT;
 
+	}
+#endif
 	if ( (strcmp(Cmd_Opr,"multinet-down") == 0 ) || (strcmp(Cmd_Opr,"multinet-stop") == 0 ) )
 	{
 		BridgeOprInPropgress = DELETE_BRIDGE;

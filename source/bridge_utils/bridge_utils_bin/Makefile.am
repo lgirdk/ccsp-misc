@@ -32,3 +32,6 @@ bridgeUtils_CPPFLAGS = -I$(top_srcdir)/include \
 bridgeUtils_SOURCES = bridge_util.c bridge_creation.c main.c bridge_util_generic.c
 
 bridgeUtils_LDFLAGS =  -lrt -lccsp_common -lsyscfg -lsysevent -lprivilege -lbridge_utils -lsecure_wrapper
+if CORE_NET_LIB_FEATURE_SUPPORT
+bridgeUtils_LDFLAGS += -lnet
+endif

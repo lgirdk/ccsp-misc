@@ -28,16 +28,21 @@
 
 
 #include "OvsAgentApi.h"
-
+typedef struct interact_request{
+    #if !defined(USE_LINUX_BRIDGE)
+    ovs_interact_request ovs_request;
+    #endif
+    Gateway_Config *gw_config;
+}interact_request;
 /**
  * @brief To add a transaction that has been initiated to the transaction store.
  *
  * @param[in] trans_uuid Transaction UUID unique identifier for the message/transaction.
  * @return boolean true indicating success, false indicating failure.
  */
-bool create_bridge_api(ovs_interact_request *request, ovs_interact_cb callback);
+bool create_bridge_api(interact_request *request, ovs_interact_cb callback);
 
-bool brctl_interact(ovs_interact_request * request);
+bool brctl_interact(Gateway_Config * gw_config);
 
 #endif
 
