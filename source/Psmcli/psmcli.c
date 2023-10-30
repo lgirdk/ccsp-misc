@@ -302,7 +302,8 @@ int main(int argc, char**argv)
     }
 
     // try to get an unique name for the connection
-    sprintf(component_id, "%s.pid%d", psmcli_component_id, getpid()); 
+    /* CID 73895  Calling risky function */
+    snprintf(component_id, (PSMCLI_STRLEN_MAX-1),"%s.pid%d", psmcli_component_id, getpid());
 
     // Assuming the component_id generated with pid is unique, 
     // So skip the checking to increase speed. RTian 6/19/2013

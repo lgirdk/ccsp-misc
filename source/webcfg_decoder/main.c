@@ -28,7 +28,8 @@
 #include <string.h>
 #include <msgpack.h>
 #include <trower-base64/base64.h>
-#include <rbus.h>
+/* CID 185779  Recursion in included headers */
+#include <rbus_message.h>
 
 #define MAX_HEADER_LEN		   4096
 #define MAX_BUF_SIZE	           256
@@ -241,9 +242,11 @@ void b64Decoder()
 {
 	char *data = NULL;
 	char * decodeMsg = NULL;
+	const char* array_index = NULL;
 	size_t decodeMsgSize = 0;
 	size_t size = 0;
 	size_t len = 0;
+	int array_index_err = 0;
 
 	msgpack_zone mempool;
 	msgpack_object deserialized;
@@ -255,7 +258,24 @@ void b64Decoder()
 
 		decodeMsg = (char *) malloc(sizeof(char) * decodeMsgSize);
 
-		size = b64_decode( (const uint8_t *)data, strlen(data), (uint8_t *)decodeMsg );
+                /* CID 143614 Untrusted value as argument */
+                for (array_index = data ; *array_index != '\0'; ++array_index)
+                {
+                    int arr_index_val = (int)*array_index;
+                    if((arr_index_val < 0)  ||  (arr_index_val > 255))
+                    {
+                        array_index_err++;
+                    }
+                }
+
+                if(array_index_err == 0)
+                {
+                    size = b64_decode( (const uint8_t *)data, strlen(data), (uint8_t *)decodeMsg );
+                }
+                else
+                {
+                    printf("b64_decode_table boundry condition error: array_index_err %d\n",array_index_err);
+                }
 
 		msgpack_zone_init(&mempool, 2048);
 		unpack_ret = msgpack_unpack(decodeMsg, size, NULL, &mempool, &deserialized);
@@ -728,12 +748,20 @@ int cli_getHttpResponse(char **configData, long *code, char* contentType, size_t
 					else
 					{
 						//printf("Content-Type is multipart/mixed. Valid\n");
-						strcpy(contentType, ct);
-
-						*configData=data1.data;
-						*dataSize = data1.size;
-						//printf("Data size is %d\n",(int)data1.size);
-						rv = 1;
+						/* CID 280247  Calling risky function */
+						if( strlen(ct) < (MAX_BUF_SIZE - 1))
+						{
+						    strncpy(contentType, ct,(MAX_BUF_SIZE - 1));
+						    contentType[MAX_BUF_SIZE - 1] = '\0';
+						    *configData=data1.data;
+						    *dataSize = data1.size;
+						    //printf("Data size is %d\n",(int)data1.size);
+						    rv = 1;
+						}
+						else
+						{
+						    printf("Content-Type multipart/mixed copy error \n");
+						}
 					}
 				}
 			}

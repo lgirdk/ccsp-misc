@@ -114,6 +114,8 @@ pid_t start_dhcpv6_client (dhcp_params * params)
     if (dhcp_sysevent_fd < 0)
     {
         DBG_PRINT("%s %d: Fail to open sysevent.\n", __FUNCTION__, __LINE__);
+	/* CID 189993 Improper use of negative value */
+	return FAILURE;
     }
 
     // init part
@@ -166,6 +168,8 @@ int stop_dhcpv6_client (dhcp_params * params)
     if (dhcp_sysevent_fd < 0)
     {
         DBG_PRINT("%s %d: Fail to open sysevent.\n", __FUNCTION__, __LINE__);
+	/* CID 280237 Improper use of negative value */
+	return 0;
     }
 
     sysevent_set(dhcp_sysevent_fd, dhcp_sysevent_token, DHCPV6C_ENABLED, "0", 0);

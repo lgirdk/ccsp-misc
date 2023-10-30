@@ -259,7 +259,11 @@ int checkIfExists(char* iface_name)
 		bridge_util_log("%s Interface doesn't exists \n",iface_name);
 		return INTERFACE_NOT_EXIST;
 	}
-	strcpy(ifr.ifr_name, iface_name);
+
+        /*CID 180986 Calling risky function */
+        strncpy(ifr.ifr_name, iface_name, (sizeof(ifr.ifr_name)-1));
+        ifr.ifr_name[(sizeof(ifr.ifr_name)-1)] = '\0';
+
 	if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0) {
 		if (errno == ENODEV) {
 			bridge_util_log("%s Interface doesn't exists \n",iface_name);
@@ -2360,6 +2364,9 @@ int ExitFunc()
 	if( bus_handle != NULL )
 		CCSP_Message_Bus_Exit(bus_handle);
 
+	/* CID 249136 Waiting while holding a lock fix */
+	pthread_mutex_unlock(brmutex.ptr);
+
 	if ( syseventfd_vlan > 0 )
 		sysevent_close(syseventfd_vlan, sysevent_token_vlan);
 
@@ -2374,8 +2381,6 @@ int ExitFunc()
     	   	ovs_agent_api_deinit();
     	}
 	 	
-	pthread_mutex_unlock(brmutex.ptr);
-
 	if (br_shm_mutex_close(brmutex)) {
             unlink(BRIDGE_UTIL_RUNNING);
 	    	return -1;

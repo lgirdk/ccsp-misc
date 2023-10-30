@@ -22,6 +22,8 @@
 
 #ifdef DHCPV4_CLIENT_UDHCPC
 
+#define DHCPV4_OPT_2  2  // time zone offset
+
 /*
  * ascii_to_hex ()
  * @description: returns allocated space with hex value of the input argument passed.
@@ -86,16 +88,29 @@ static int udhcpc_get_req_options (char * buff, dhcp_opt_list * req_opt_list)
     while (req_opt_list)
     {
         memset (&args, 0, BUFLEN_16);
-        if (req_opt_list->dhcp_opt == DHCPV4_OPT_42)
+        if (req_opt_list->dhcp_opt == DHCPV4_OPT_2)
+	{
+            /* CID 189999 Calling risky function */
+            snprintf(args, (BUFLEN_16-1),"-O timezone ");
+        }
+        else if (req_opt_list->dhcp_opt == DHCPV4_OPT_42)
         {
-            strcpy (args, "-O ntpsrv ");
+            snprintf(args, (BUFLEN_16-1),"-O ntpsrv ");
         }
         else
         {
-            snprintf (args, BUFLEN_16, "-O %d ", req_opt_list->dhcp_opt);
+            snprintf (args, (BUFLEN_16-1), "-O %d ", req_opt_list->dhcp_opt);
         }
         req_opt_list = req_opt_list->next;
-        strcat(buff, args);
+
+        if(strlen(buff) < (sizeof(buff) - BUFLEN_16))
+        {
+            strncat(buff, args, BUFLEN_16 - 1);
+        }
+        else
+        {
+            DBG_PRINT("%s %d: Insufficient buff size \n", __FUNCTION__, __LINE__);
+        }
     }
 
     DBG_PRINT("%s %d: get req args - %s\n", __FUNCTION__, __LINE__, buff);
@@ -145,7 +160,15 @@ static int udhcpc_get_send_options (char * buff, dhcp_opt_list * send_opt_list)
             }
         }
         send_opt_list = send_opt_list->next;
-        strcat (buff,args);
+        /* CID 189996 Calling risky function */
+        if(strlen(buff) < (sizeof(buff) - BUFLEN_128))
+        {
+            strncat(buff, args, BUFLEN_128 - 1);
+        }
+        else
+        {
+            DBG_PRINT("%s %d: Insufficient buff size \n", __FUNCTION__, __LINE__);
+        }
     }
 
     return SUCCESS;
@@ -172,12 +195,30 @@ static int udhcpc_get_other_args (char * buff, dhcp_params * params)
     {
         char ifname_opt[BUFLEN_16] = {0};
         snprintf (ifname_opt, sizeof(ifname_opt), "-i %s ", params->ifname);
-        strcat (buff, ifname_opt);
+        /* CID 189992 Calling risky function */
+        if ((strlen(ifname_opt) < BUFLEN_16) && (strlen(buff) < (sizeof(buff) - BUFLEN_16)) )
+        {
+            strncat (buff, ifname_opt,BUFLEN_16-1);
+        }
+        else
+        {
+            DBG_PRINT("%s %d: Error in copying ifname \n", __FUNCTION__, __LINE__);
+            return FAILURE;
+        }
 
         // Add -p <pidfile>
         char pidfile[BUFLEN_32] = {0};
         snprintf (pidfile, sizeof(pidfile), UDHCP_PIDFILE_PATTERN , params->ifname);
-        strcat (buff, pidfile);
+        if ((strlen(pidfile) < BUFLEN_32) && (strlen(buff) < (sizeof(buff) - BUFLEN_32)) )
+        {
+            strncat (buff, pidfile, BUFLEN_32-1 );
+        }
+        else
+        {
+            DBG_PRINT("%s %d: Error in copying pidfile \n", __FUNCTION__, __LINE__);
+            return FAILURE;
+        }
+
     }
 
     // Add -s <servicefile>
@@ -187,21 +228,38 @@ static int udhcpc_get_other_args (char * buff, dhcp_params * params)
 #else
     snprintf (servicefile, sizeof(servicefile), "-s %s ", UDHCPC_SERVICE_EXE);
 #endif
-    strcat (buff, servicefile);
+
+    if(strlen(buff) < (sizeof(buff) - BUFLEN_32))
+    {
+        strncat (buff, servicefile, BUFLEN_32-1);
+    }
+    else
+    {
+        DBG_PRINT("%s %d: Error in copying servicefile \n", __FUNCTION__, __LINE__);
+        return FAILURE;
+    }
+
+    if(strlen(buff) > (sizeof(buff) - BUFLEN_8))
+    {
+        DBG_PRINT("%s %d: Insufficient buffer size \n", __FUNCTION__, __LINE__);
+        return FAILURE;
+    }
 
     // Add udhcpc process behavior
 #ifdef UDHCPC_RUN_IN_FOREGROUND
     // udhcpc will run in foreground
-    strcat (buff, "-f ");
+    strncat (buff, "-f ", BUFLEN_4);
 #elif UDHCPC_RUN_IN_BACKGROUND
     // udhcpc will run in background if lease not obtained
-    strcat (buff, "-b ");
+    strncat (buff, "-b ", BUFLEN_4);
 #elif UDHCPC_EXIT_AFTER_LEAVE_FAILURE
     // exit if lease is not obtained
-    strcat (buff, "-n ");
+    strncat (buff, "-n ", BUFLEN_4);
 #endif
+#ifdef UDHCPC_TX_RELEASE_ON_EXIT
     // send release before exit
-    strcat (buff, "-R ");
+    strncat (buff, "-R ", BUFLEN_4);
+#endif  // UDHCPC_TX_RELEASE_ON_EXIT
 
     return SUCCESS;
 }

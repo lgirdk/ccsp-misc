@@ -302,13 +302,14 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
     // write the config path into the buffer
     snprintf(client_info->config_path, sizeof(client_info->config_path), "%s%s", DIBBLER_DFT_PATH, param->ifname);
 
-    struct stat st = {0};
-
-    if (stat(client_info->config_path, &st) == -1) 
+    /* CID 256906  Time of check time of use & CID 256902  Unchecked return value from library */
+    if (mkdir(client_info->config_path, 0644) == 0)
     {
-        // directory does not exists, so create it
-        mkdir(client_info->config_path, 0644);
         DBG_PRINT ("%s %d: created directory %s\n", __FUNCTION__, __LINE__, client_info->config_path);
+    }
+    else
+    {
+        DBG_PRINT ("%s %d: Directory already exists / not created  %s\n", __FUNCTION__, __LINE__, client_info->config_path);
     }
 
     // copy the file to new location

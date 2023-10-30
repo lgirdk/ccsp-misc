@@ -25,9 +25,10 @@
 #include <unistd.h>
 #include <string.h>
 #include <getopt.h>
-#include <rbus.h>
 #include <signal.h>
 #include <stdint.h>
+/* CID 185779  Recursion in included headers */
+#include <rbus_message.h>
 
 rbusHandle_t handle;
 

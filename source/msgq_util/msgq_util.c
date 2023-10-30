@@ -180,6 +180,7 @@ int main(int argc, char *argv[])
     char *qname = "/gwmgr_smqueue";
     int qoption = 0;
     int eventtype = 0;
+    int event_index = 0;
     if (argc  < 2)
     {
     printf(" \n Choose event value :  \n");
@@ -241,10 +242,17 @@ printf ("\n GM_EVENT_GRE_TUNNEL_ACTIVE = 4 \n");
         qoption = atoi(argv[2]);
     }
 #endif
-    if (argv[1] && (atoi(argv[1]) < GM_EVENT_MAX))
+    /* CID 280137 Untrusted array index read */
+    if(argv[1])
     {
-        eventtype = event[atoi(argv[1])];
+        event_index = atoi(argv[1]);
+
+        if((event_index >= 0) && (event_index < ((int)(sizeof(event)/sizeof(event[0])))))
+        {
+            eventtype = event[event_index];
+        }
     }
+
     if (qoption == MSG_SEND)
     {
         EventData event_t  = {0};

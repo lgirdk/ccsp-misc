@@ -397,6 +397,7 @@ static int parseArgs(const char *cmd, const char *args, char ***argv)
     int numArgs=3, i, len, argIndex=0;
     bool inSpace= TRUE;
     const char *cmdStr;
+    int  cmdStrlen = 0;
     char **array;
 
     len = (args == NULL) ? 0 : strlen(args);
@@ -431,7 +432,8 @@ static int parseArgs(const char *cmd, const char *args, char ***argv)
         cmdStr++;
     }
 
-    array[argIndex] = calloc (1, strlen(cmdStr) + 1);
+    cmdStrlen = strlen(cmdStr);
+    array[argIndex] = calloc (1, cmdStrlen + 1);
 
     if (array[argIndex] == NULL)
     {
@@ -441,7 +443,9 @@ static int parseArgs(const char *cmd, const char *args, char ***argv)
     }
     else
     {
-        strcpy(array[argIndex], cmdStr);
+        /* CID 182678 Calling risky function */
+        strncpy(array[argIndex], cmdStr, cmdStrlen);
+        array[argIndex][cmdStrlen] = '\0';
         argIndex++;
     }
 
