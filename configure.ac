@@ -139,6 +139,7 @@ AC_CONFIG_FILES(
 	source/LTime/Makefile
 	source/TimeConv/Makefile
 	source/parcon/Makefile
+	source/ServiceCtrl/Makefile
 	source/webcfg_decoder/Makefile
 	source/MemFrag_Calc/Makefile
 	source/EventSubscription/Makefile

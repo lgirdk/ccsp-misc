@@ -44,7 +44,7 @@ if SOCKET_EXAMPLE_ENABLE
 SOCKET_EXAMPLE = Socket_Example
 endif
 
-SUBDIRS = Psmcli parcon LTime TimeConv webcfg_decoder MemFrag_Calc $(SETLED) $(MULTIPART_UTIL) $(BRIDGE_UTIL) $(WBCFG_TEST) dhcp_client_utils msgq_util EventSubscription FwBankInfo $(RDKSCHEDULER_TESTAPP) $(SOCKET_EXAMPLE)
+SUBDIRS = Psmcli parcon LTime ServiceCtrl TimeConv webcfg_decoder MemFrag_Calc $(SETLED) $(MULTIPART_UTIL) $(BRIDGE_UTIL) $(WBCFG_TEST) dhcp_client_utils msgq_util EventSubscription FwBankInfo $(RDKSCHEDULER_TESTAPP) $(SOCKET_EXAMPLE)
 
 if WITH_GTEST_SUPPORT
 SUBDIRS += test
