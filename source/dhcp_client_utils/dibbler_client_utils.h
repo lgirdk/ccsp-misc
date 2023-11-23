@@ -43,6 +43,7 @@
 #define DIBBLER_TMP_DIR_PATH              "/var/lib/dibbler"
 #define DIBBLER_RADVD_FILE                "/etc/dibbler/radvd.conf"
 #define DIBBLER_RADVD_FILE_OLD            "/etc/dibbler/radvd.conf.old"
+#define DIBBLER_LG_PATH                   "/tmp/dibbler_%s"
 
 typedef struct {
     dhcp_params * if_param;
