@@ -367,10 +367,23 @@ pid_t start_dibbler (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_op
     }
 #endif
 
-    DBG_PRINT("%s %d: Starting dibbler with config %s\n", __FUNCTION__, __LINE__, client_info.config_path);
-    
+    pid_t pid;
+    char custom_cfg_path[BUFLEN_128];
     char cmd_args[BUFLEN_256] = {0};
-    snprintf(cmd_args, sizeof(cmd_args), "%s", DIBBLER_CLIENT_RUN_CMD);
+
+    snprintf(custom_cfg_path, sizeof(custom_cfg_path), DIBBLER_LG_PATH, params->ifname);
+    if (access(custom_cfg_path, F_OK))
+    {
+        custom_cfg_path[0] = '\0'; /* custom dibbler cfg is not enabled in the platform */
+        DBG_PRINT("%s %d: Starting dibbler\n", __FUNCTION__, __LINE__);
+        snprintf(cmd_args, sizeof(cmd_args), "%s", DIBBLER_CLIENT_RUN_CMD);
+    }
+    else
+    {
+        DBG_PRINT("%s %d: Starting dibbler with custom config %s\n", __FUNCTION__, __LINE__, custom_cfg_path);
+        snprintf(cmd_args, sizeof(cmd_args), "%s -w %s", DIBBLER_CLIENT_RUN_CMD, custom_cfg_path);
+    }
+
 
     pid_t ret = start_exe(DIBBLER_CLIENT_PATH, cmd_args);
     if (ret <= 0)
@@ -385,9 +398,9 @@ pid_t start_dibbler (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_op
         DBG_PRINT("%s %d: unable to collect pid for %d.\n", __FUNCTION__, __LINE__, ret);
     }
 
-    DBG_PRINT("%s %d: Started dibbler-client. returning pid..\n", __FUNCTION__, __LINE__);
-    return get_process_pid (DIBBLER_CLIENT, NULL, true);
-
+    pid = get_process_pid (DIBBLER_CLIENT, custom_cfg_path[0] != '\0' ? custom_cfg_path : NULL, true);
+    DBG_PRINT("%s %d: Started dibbler-client. returning pid (%d)..\n", __FUNCTION__, __LINE__, pid);
+    return pid;
 }
 
 /*
@@ -406,16 +419,28 @@ int stop_dibbler (dhcp_params * params)
     }
 
     pid_t pid = 0;
+    char cmdargs[BUFLEN_256];
+    char custom_cfg_path[BUFLEN_128];
 
-    pid = get_process_pid(DIBBLER_CLIENT, NULL, false);
+    snprintf(custom_cfg_path, sizeof(custom_cfg_path), DIBBLER_LG_PATH, params->ifname);
+    if (access(custom_cfg_path, F_OK))
+    {
+        custom_cfg_path[0] = '\0';
+        snprintf(cmdargs, sizeof(cmdargs), DIBBLER_CLIENT "stop");
+    }
+    else
+    {
+        snprintf(cmdargs, sizeof(cmdargs), DIBBLER_CLIENT " stop -w %s", custom_cfg_path);
+    }
 
+    pid = get_process_pid(DIBBLER_CLIENT, custom_cfg_path[0] != '\0' ? custom_cfg_path : NULL, false);
     if (pid <= 0)
     {
         DBG_PRINT("%s %d: unable to get pid of %s\n", __FUNCTION__, __LINE__, DIBBLER_CLIENT);
         return FAILURE;
     }
 
-    if (system(DIBBLER_CLIENT " stop") != 0)
+    if (system(cmdargs) != 0)
     {
         return FAILURE;
     }
