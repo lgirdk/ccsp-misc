@@ -16,7 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-#if !defined(_SR213_PRODUCT_REQ_) && defined(_HUB4_PRODUCT_REQ_) && !defined (_WNXL11BWL_PRODUCT_REQ_)
+#if !defined(_SR213_PRODUCT_REQ_) && !defined (_WNXL11BWL_PRODUCT_REQ_)
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -40,7 +40,7 @@ FILE* logFp = NULL;
 
 int main()
 {
-#if !defined(_SR213_PRODUCT_REQ_) && defined(_HUB4_PRODUCT_REQ_) && !defined (_WNXL11BWL_PRODUCT_REQ_)
+#if !defined(_SR213_PRODUCT_REQ_) && !defined (_WNXL11BWL_PRODUCT_REQ_)
     int ret;
     int rc = -1;
     PFW_BANK_INFO pfw_bank=NULL;
