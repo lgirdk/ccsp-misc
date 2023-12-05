@@ -27,8 +27,7 @@
 #include <getopt.h>
 #include <signal.h>
 #include <stdint.h>
-/* CID 185779  Recursion in included headers */
-#include <rbus_message.h>
+#include <rbus.h>
 
 rbusHandle_t handle;
 

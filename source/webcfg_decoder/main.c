@@ -28,8 +28,7 @@
 #include <string.h>
 #include <msgpack.h>
 #include <trower-base64/base64.h>
-/* CID 185779  Recursion in included headers */
-#include <rbus_message.h>
+#include <rbus.h>
 
 #define MAX_HEADER_LEN		   4096
 #define MAX_BUF_SIZE	           256
