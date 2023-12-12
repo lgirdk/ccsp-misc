@@ -65,10 +65,11 @@ static char * ascii_to_hex (char * buff, int buff_len)
  * @description: This function will construct a buffer with all the udhcpc REQUEST options
  * @params     : buff - output buffer to pass all REQUEST options
  *               req_opt_list - input list of DHCP REQUEST options
+ *               buff_size - size of output buffer
  * @return     : return a buffer that has -O <REQ-DHCP-OPT>
  *
  */
-static int udhcpc_get_req_options (char * buff, dhcp_opt_list * req_opt_list)
+static int udhcpc_get_req_options (char * buff, size_t buff_size, dhcp_opt_list * req_opt_list)
 {
 
     if (buff == NULL)
@@ -103,7 +104,7 @@ static int udhcpc_get_req_options (char * buff, dhcp_opt_list * req_opt_list)
         }
         req_opt_list = req_opt_list->next;
 
-        if(strlen(buff) < (sizeof(buff) - BUFLEN_16))
+        if(strlen(buff) < (buff_size - BUFLEN_16))
         {
             strncat(buff, args, BUFLEN_16 - 1);
         }
@@ -123,10 +124,11 @@ static int udhcpc_get_req_options (char * buff, dhcp_opt_list * req_opt_list)
  * @description: This function will construct a buffer with all the udhcpc SEND options
  * @params     : buff - output buffer to pass all SEND options
  *               req_opt_list - input list of DHCP SEND options
+ *               buff_size - size of output buffer
  * @return     : return a buffer that has -x <SEND-DHCP-OPT:SEND-DHCP-OPT-VALUE> (or -V <SEND-DHCP-OPT-VALUE> for option60)
  *
  */
-static int udhcpc_get_send_options (char * buff, dhcp_opt_list * send_opt_list)
+static int udhcpc_get_send_options (char * buff, size_t buff_size, dhcp_opt_list * send_opt_list)
 {
 
     if (buff == NULL)
@@ -161,7 +163,7 @@ static int udhcpc_get_send_options (char * buff, dhcp_opt_list * send_opt_list)
         }
         send_opt_list = send_opt_list->next;
         /* CID 189996 Calling risky function */
-        if(strlen(buff) < (sizeof(buff) - BUFLEN_128))
+        if(strlen(buff) < (buff_size - BUFLEN_128))
         {
             strncat(buff, args, BUFLEN_128 - 1);
         }
@@ -179,10 +181,11 @@ static int udhcpc_get_send_options (char * buff, dhcp_opt_list * send_opt_list)
  * @description: This function will construct a buffer with all other udhcpc options
  * @params     : buff - output buffer to pass all SEND options
  *               params - input parameters to udhcpc like interface
+ *               buff_size - size of output buffer
  * @return     : return a buffer that has -i, -p, -s, -b/f/n options
  *
  */
-static int udhcpc_get_other_args (char * buff, dhcp_params * params)
+static int udhcpc_get_other_args (char * buff, size_t buff_size, dhcp_params * params)
 {
      if ((buff == NULL) || (params == NULL))
     {
@@ -196,7 +199,7 @@ static int udhcpc_get_other_args (char * buff, dhcp_params * params)
         char ifname_opt[BUFLEN_16] = {0};
         snprintf (ifname_opt, sizeof(ifname_opt), "-i %s ", params->ifname);
         /* CID 189992 Calling risky function */
-        if ((strlen(ifname_opt) < BUFLEN_16) && (strlen(buff) < (sizeof(buff) - BUFLEN_16)) )
+        if ((strlen(ifname_opt) < BUFLEN_16) && (strlen(buff) < (buff_size - BUFLEN_16)) )
         {
             strncat (buff, ifname_opt,BUFLEN_16-1);
         }
@@ -209,7 +212,7 @@ static int udhcpc_get_other_args (char * buff, dhcp_params * params)
         // Add -p <pidfile>
         char pidfile[BUFLEN_32] = {0};
         snprintf (pidfile, sizeof(pidfile), UDHCP_PIDFILE_PATTERN , params->ifname);
-        if ((strlen(pidfile) < BUFLEN_32) && (strlen(buff) < (sizeof(buff) - BUFLEN_32)) )
+        if ((strlen(pidfile) < BUFLEN_32) && (strlen(buff) < (buff_size - BUFLEN_32)) )
         {
             strncat (buff, pidfile, BUFLEN_32-1 );
         }
@@ -229,7 +232,7 @@ static int udhcpc_get_other_args (char * buff, dhcp_params * params)
     snprintf (servicefile, sizeof(servicefile), "-s %s ", UDHCPC_SERVICE_EXE);
 #endif
 
-    if(strlen(buff) < (sizeof(buff) - BUFLEN_32))
+    if(strlen(buff) < (buff_size - BUFLEN_32))
     {
         strncat (buff, servicefile, BUFLEN_32-1);
     }
@@ -239,7 +242,7 @@ static int udhcpc_get_other_args (char * buff, dhcp_params * params)
         return FAILURE;
     }
 
-    if(strlen(buff) > (sizeof(buff) - BUFLEN_8))
+    if(strlen(buff) > (buff_size - BUFLEN_8))
     {
         DBG_PRINT("%s %d: Insufficient buffer size \n", __FUNCTION__, __LINE__);
         return FAILURE;
@@ -293,21 +296,21 @@ pid_t start_udhcpc (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_opt
     char buff [BUFLEN_512] = {0};
 
     DBG_PRINT("%s %d: Constructing REQUEST option args to udhcpc.\n", __FUNCTION__, __LINE__);
-    if ((req_opt_list != NULL) && (udhcpc_get_req_options(buff, req_opt_list)) != SUCCESS)
+    if ((req_opt_list != NULL) && (udhcpc_get_req_options(buff, sizeof(buff), req_opt_list)) != SUCCESS)
     {
         DBG_PRINT("%s %d: Unable to get DHCPv4 REQ OPT.\n", __FUNCTION__, __LINE__);
         return FAILURE;
     }
 
     DBG_PRINT("%s %d: Constructing SEND option args to udhcpc.\n", __FUNCTION__, __LINE__);
-    if ((send_opt_list != NULL) && (udhcpc_get_send_options(buff, send_opt_list) != SUCCESS))
+    if ((send_opt_list != NULL) && (udhcpc_get_send_options(buff, sizeof(buff), send_opt_list) != SUCCESS))
     {
         DBG_PRINT("%s %d: Unable to get DHCPv4 SEND OPT.\n", __FUNCTION__, __LINE__);
         return FAILURE;
     }
 
     DBG_PRINT("%s %d: Constructing other option args to udhcpc.\n", __FUNCTION__, __LINE__);
-    if (udhcpc_get_other_args(buff, params) != SUCCESS)
+    if (udhcpc_get_other_args(buff, sizeof(buff), params) != SUCCESS)
     {
         DBG_PRINT("%s %d: Unable to get DHCPv4 SEND OPT.\n", __FUNCTION__, __LINE__);
         return FAILURE;
