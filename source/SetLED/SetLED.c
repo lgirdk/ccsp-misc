@@ -55,9 +55,11 @@ int main(int argc, char* argv[]) {
         }
 
 #if defined(INTEL_PUMA7) || defined(_XB6_PRODUCT_REQ_) || defined(_CBR2_PRODUCT_REQ_)
+#ifndef XB10_ONLY_SUPPORT
 		if(RETURN_ERR == platform_hal_setLed(&ledMgmt)) {
 			printf("LED Set Unsuccessful!\n");
 		}
+#endif
 #endif
 	}
 
