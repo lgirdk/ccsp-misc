@@ -426,7 +426,7 @@ int stop_dibbler (dhcp_params * params)
     if (access(custom_cfg_path, F_OK))
     {
         custom_cfg_path[0] = '\0';
-        snprintf(cmdargs, sizeof(cmdargs), DIBBLER_CLIENT "stop");
+        snprintf(cmdargs, sizeof(cmdargs), DIBBLER_CLIENT " stop");
     }
     else
     {
