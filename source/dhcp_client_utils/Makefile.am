@@ -23,5 +23,5 @@ AM_CPPFLAGS = -Wall -Werror
 ACLOCAL_AMFLAGS = -I m4
 
 lib_LTLIBRARIES = libdhcp_client_utils.la
-libdhcp_client_utils_la_SOURCES = dhcpv4_client_utils.c udhcpc_client_utils.c dhcpv6_client_utils.c dibbler_client_utils.c dhcp_client_common.c
+libdhcp_client_utils_la_SOURCES = dhcpv4_client_utils.c udhcpc_client_utils.c ti_udhcpc_client_utils.c dhcpv6_client_utils.c dibbler_client_utils.c dhcp_client_common.c ti_dhcp6c_client_utils.c
 libdhcp_client_utils_la_LDFLAGS = -lhal_platform -lsysevent -lsyscfg

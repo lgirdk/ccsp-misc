@@ -21,6 +21,9 @@
 #include <sysevent/sysevent.h>
 #include <syscfg/syscfg.h>
 #include <string.h>
+#ifdef DHCPv6_CLIENT_TI_DHCP6C
+#include "ti_dhcp6c_client_utils.h"
+#endif
 
 #define LOCALHOST         "127.0.0.1"
 #define DHCP_SYSEVENT_NAME "dhcp_evt_handler"
@@ -64,7 +67,11 @@ static int get_dhcpv6_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** 
             sysevent_get(dhcp_sysevent_fd, dhcp_sysevent_token, "dslite_enabled", dslite_enable, sizeof(dslite_enable));
             if (strcmp(dslite_enable, "true") == 0)
             {
-                //ToDo, dslite not yet implemented, so as of now no DHCPv6 Options.
+                if (add_dhcp_opt_to_list (req_opt_list, DHCPV6_OPT_64, NULL) != RETURN_OK)
+                {
+                    DBG_PRINT("%s %d: failed to add REQUEST option OPTION_AFTR_NAME to list\n", __FUNCTION__, __LINE__);
+                    return FAILURE;
+                }
             }
         }
     }
@@ -118,6 +125,42 @@ pid_t start_dhcpv6_client (dhcp_params * params)
 	return FAILURE;
     }
 
+    // check if interface is ipv6 ready with a link-local address
+    unsigned int waitTime = INTF_V6LL_TIMEOUT_IN_MSEC;
+    char cmd[BUFLEN_128] = {0};
+    snprintf(cmd, sizeof(cmd), "ip address show dev %s tentative", params->ifname);
+    while (waitTime > 0)
+    {
+        FILE *fp_dad   = NULL;
+        char buffer[BUFLEN_256] = {0};
+
+        fp_dad = popen(cmd, "r");
+        if(fp_dad != NULL) 
+        {
+            fgets(buffer, BUFLEN_256, fp_dad);
+            if(strlen(buffer) == 0 ) 
+            {
+                pclose(fp_dad);
+                break;
+            }
+            DBG_PRINT("%s %d: interface still tentative: %s\n", __FUNCTION__, __LINE__, buffer);
+            pclose(fp_dad);
+        }
+        usleep(INTF_V6LL_INTERVAL_IN_MSEC * USECS_IN_MSEC);
+        waitTime -= INTF_V6LL_INTERVAL_IN_MSEC;
+    }
+
+    if (waitTime <= 0)
+    {
+        DBG_PRINT("%s %d: interface %s doesnt have link local address\n", __FUNCTION__, __LINE__, params->ifname);
+        sysevent_close(dhcp_sysevent_fd, dhcp_sysevent_token);
+        return pid;
+    }
+
+#ifdef DHCPv6_CLIENT_TI_DHCP6C
+    return start_ti_dhcp6c (params);
+#endif
+
     // init part
     dhcp_opt_list * req_opt_list = NULL;
     dhcp_opt_list * send_opt_list = NULL;
@@ -132,7 +175,9 @@ pid_t start_dhcpv6_client (dhcp_params * params)
 
     // building args and starting dhcpv4 client
     DBG_PRINT("%s %d: Starting Dibbler Clients\n", __FUNCTION__, __LINE__);
+#ifdef DHCPV6_CLIENT_DIBBLER
     pid =  start_dibbler (params, req_opt_list, send_opt_list);
+#endif
 
     /* set dhcpv6c_enabled sysevent to restart dibbler-server in Selfheal process */
     sysevent_set(dhcp_sysevent_fd, dhcp_sysevent_token, DHCPV6C_ENABLED, "1", 0);
@@ -175,7 +220,12 @@ int stop_dhcpv6_client (dhcp_params * params)
     sysevent_set(dhcp_sysevent_fd, dhcp_sysevent_token, DHCPV6C_ENABLED, "0", 0);
     sysevent_close(dhcp_sysevent_fd, dhcp_sysevent_token);
 
+#if DHCPv6_CLIENT_TI_DHCP6C
+    return stop_ti_dhcp6c (params);
+#else
     return stop_dibbler (params);
+#endif
+    return 0;
 
 }
 

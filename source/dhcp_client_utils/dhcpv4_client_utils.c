@@ -19,55 +19,11 @@
 
 #include "dhcp_client_utils.h"
 #include "udhcpc_client_utils.h"
+#ifdef  DHCPV4_CLIENT_TI_UDHCPC
+#include "ti_udhcpc_client_utils.h"
+#endif
 #include <syscfg/syscfg.h>
 #include <string.h>
-
-#if DHCPV4_CLIEN_TI_UDHCPC
-static pid_t start_ti_udhcpc (dhcp_params * params)
-{
-    if (params == NULL)
-    {
-        DBG_PRINT("%s %d: Invalid args..\n", __FUNCTION__, __LINE__);
-        return FAILURE;
-    }
-}
-#endif  // DHCPV4_CLIENT_TI_UDHCPC
-
-/*
- * add_dhcpv4_opt_to_list ()
- * @description: util function to add DHCP opt and DHCP opt value to list
- * @params     : opt_list - output param to add DHCP options
-               : opt - DHCP option
-               : opt_val - DHCP option value - optional
- * @return     : returns the SUCCESS on adding option to list, else returns failure
- *
- */
-static int add_dhcpv4_opt_to_list (dhcp_opt_list ** opt_list, int opt, char * opt_val)
-{
-
-    if ((opt_list == NULL) || (opt <= 0) ||(opt >= DHCPV4_OPT_END) )
-    {
-        return RETURN_ERR;
-    }
-
-    dhcp_opt_list * new_dhcp_opt = malloc (sizeof(dhcp_opt_list));
-    if (new_dhcp_opt == NULL)
-    {
-        return RETURN_ERR;
-    }
-    memset (new_dhcp_opt, 0, sizeof(dhcp_opt_list));
-    new_dhcp_opt->dhcp_opt = opt;
-    new_dhcp_opt->dhcp_opt_val = opt_val;
-
-    if (*opt_list != NULL)
-    {
-        new_dhcp_opt->next = *opt_list;
-    }
-    *opt_list = new_dhcp_opt;
-
-    return RETURN_OK;
-
-}
 
 /*
  * get_dhcpv4_opt_list ()
@@ -79,7 +35,6 @@ static int add_dhcpv4_opt_to_list (dhcp_opt_list ** opt_list, int opt, char * op
  */
 static int get_dhcpv4_opt_list (dhcp_params * params, dhcp_opt_list ** req_opt_list, dhcp_opt_list ** send_opt_list)
 {
-    char wanoe_enable[BUFLEN_16] = {0};
 
     if ((req_opt_list == NULL) || (send_opt_list == NULL))
     {
@@ -87,25 +42,30 @@ static int get_dhcpv4_opt_list (dhcp_params * params, dhcp_opt_list ** req_opt_l
         return FAILURE;
     }
 
+#ifdef EROUTER_DHCP_OPTION_MTA
     //syscfg for eth_wan_enabled
+    char wanoe_enable[BUFLEN_16] = {0};
     if (syscfg_get(NULL, "eth_wan_enabled", wanoe_enable, sizeof(wanoe_enable)) == 0)
     {
         if (strcmp(wanoe_enable, "true") == 0)
         {
-            add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_122, NULL);
-            add_dhcpv4_opt_to_list(send_opt_list, DHCPV4_OPT_125, NULL);
+            // request option 122 - CableLabs Client Configuration
+            add_dhcp_opt_to_list(req_opt_list, DHCPV4_OPT_122, NULL);
+            // send option 125 - option value added by hal
+            add_dhcp_opt_to_list(send_opt_list, DHCPV4_OPT_125, NULL);
         }
     }
     else
     {
         DBG_PRINT("Failed to get eth_wan_enabled \n");
     }
+#endif
 
 #if defined(_HUB4_PRODUCT_REQ_)
     if (strncmp(params->baseIface, "eth", 3) == 0)
     {
         DBG_PRINT("%s %d: Adding Option 43 \n", __FUNCTION__, __LINE__);
-        add_dhcpv4_opt_to_list(req_opt_list, DHCPV4_OPT_43, NULL);
+        add_dhcp_opt_to_list(req_opt_list, DHCPV4_OPT_43, NULL);
     }
 #else
     UNUSED_VARIABLE(params);
@@ -120,7 +80,6 @@ static int get_dhcpv4_opt_list (dhcp_params * params, dhcp_opt_list ** req_opt_l
     return SUCCESS;
 
 }
-
 
 /*
  * start_dhcpv4_client ()
@@ -139,6 +98,11 @@ pid_t start_dhcpv4_client (dhcp_params * params)
 
 
     pid_t pid = FAILURE;
+
+#if DHCPV4_CLIENT_TI_UDHCPC
+    pid =  start_ti_udhcpc (params);
+    return pid;
+#endif
 
     // init part
     dhcp_opt_list * req_opt_list = NULL;
@@ -165,13 +129,12 @@ pid_t start_dhcpv4_client (dhcp_params * params)
         //  DHCP send options are not necessary
         pid =  start_udhcpc (params, req_opt_list, NULL);
     }
-#elif DHCPV4_CLIEN_TI_UDHCPC
-    pid =  start_ti_udhcpc (params);
 #endif
 
     //exit part
     DBG_PRINT("%s %d: freeing all allocated resources\n", __FUNCTION__, __LINE__);
     free_opt_list_data (req_opt_list);
+    DBG_PRINT("%s %d: freeing all allocated resources\n", __FUNCTION__, __LINE__);
     free_opt_list_data (send_opt_list);
     return pid;
 
@@ -193,7 +156,9 @@ int stop_dhcpv4_client (dhcp_params * params)
         return FAILURE;
     }
 
-#ifdef DHCPV4_CLIENT_UDHCPC
+#ifdef DHCPV4_CLIENT_TI_UDHCPC 
+    return stop_ti_udhcpc (params);
+#else
     return stop_udhcpc (params);
 #endif
     return SUCCESS;
