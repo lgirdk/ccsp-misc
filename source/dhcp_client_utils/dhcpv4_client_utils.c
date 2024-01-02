@@ -205,7 +205,7 @@ static int prepare_dhcp61_optvalue(char *options, const int length)
 {
     char basemac[18], ProductClass[32], SerialNo[64], IAID[9], buf[256];
     int type = 255;
-    ULONG IAID_HEX = 0;
+    unsigned long long IAID_HEX = 0;
     int padding = 0;
     int opt_len = 0;
     int DUID_TYPE = 2;
@@ -223,7 +223,9 @@ static int prepare_dhcp61_optvalue(char *options, const int length)
         IAID[8] = 0;
     }
 
-    IAID_HEX = strtol(IAID,NULL,16); //convert char to hex
+    IAID_HEX = strtoull(IAID,NULL,16); //convert char to hex
+    DBG_PRINT("%s %d IAID_HEX:%lld \n",__FUNCTION__,__LINE__,IAID_HEX);
+
     //Identifier in format <OUI>"-"<ProductClass>"-"<CPE_LogisticsSerialNumber>
 
     if(platform_hal_GetProductClass(ProductClass) != RETURN_OK)  //Product class is MERCV3X
@@ -239,8 +241,9 @@ static int prepare_dhcp61_optvalue(char *options, const int length)
     }
 
     snprintf(buf, sizeof(buf),"%s-%s-%s",CONFIG_VENDOR_ID,ProductClass,SerialNo);
-    opt_len += sprintf(options + opt_len, "%02x%0lx%02x%02x%02x%02x%x%02x",type,IAID_HEX,padding,DUID_TYPE,padding,padding,padding,atoi(DUID));
+    opt_len += sprintf(options + opt_len, "%02x%0llx%02x%02x%02x%02x%x%02x",type,IAID_HEX,padding,DUID_TYPE,padding,padding,padding,atoi(DUID));
     opt_len = writeTOHexFromAscii(options, length, opt_len, buf);
+    DBG_PRINT("%s %d options:%s \n",__FUNCTION__,__LINE__,options);
 
     return 0;
 }
