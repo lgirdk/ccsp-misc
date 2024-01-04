@@ -37,6 +37,7 @@ done
 PORT2ENABLE=`syscfg get HomeSecurityEthernet4Flag`
 BRIDGE_MODE=`syscfg get bridge_mode`
 migrationCompleteFlag=0
+cbr2_migrationCompleteFlag=0
 MIGRATION_FILE="/nvram/.migration_to_psm_complete"
 if [ "xcompleted" != "x`syscfg get psm_migration`" ];then
 	if [ "$MODEL_NUM" = "CGM4140COM" ] || [ "$MODEL_NUM" = "CGM4981COM" ] || [ "$MODEL_NUM" = "CGM4331COM" ];then
@@ -138,14 +139,49 @@ if [ "xcompleted" != "x`syscfg get psm_migration`" ];then
 		migrationCompleteFlag=1
 	fi
 
+fi
+#if device is FR in other builds which is not having bridgeUtil or OVS support, device will have wrong psm config. 
+#need to correct psm config 
+if [ "$migrationCompleteFlag" -eq 0 ];then
+	if [ "$MODEL_NUM" = "CGM4140COM" ] || [ "$MODEL_NUM" = "TG3482G" ] || [ "$MODEL_NUM" = "CGM4981COM" ] || [ "$MODEL_NUM" = "CGM4331COM" ] || [ "$MODEL_NUM" = "TG4482A" ];then
+		for i in 1 2
+		do
+			if [ "xl2sd0-t" = "x`psmcli get dmsb.l2net."$i".Members.Link`" ];then
+				psmcli set dmsb.l2net."$i".Members.Link ""
+			fi
+		done
+	fi
+	if [ "$MODEL_NUM" = "TG4482A" ];then
+		if [ "x" = "x`psmcli get dmsb.l2net.11.Members.Link`" ];then
+			psmcli set dmsb.l2net.11.Members.Link "nrgmii2 nsgmii0 sw_2 sw_3"
+		fi
+                if [ "8" != "`psmcli get dmsb.MultiLAN.EthBhaul_l3net`" ];then
+                        psmcli set dmsb.MultiLAN.EthBhaul_l3net 8
+                fi
+	fi
+fi
+
+	if [ "$MODEL_NUM" = "TG3482G" ] || [ "$MODEL_NUM" = "TG4482A" ] ;then
+		if [ ! -f "/nvram/.updatepsm_port_routermode" ];then
+			LLAN_PORT=$(psmcli get dmsb.MultiLAN.PrimaryLAN_brport)
+			if [ "$BRIDGE_MODE" -eq 0 ];then
+				psmcli set dmsb.l2net.1.Port."$LLAN_PORT".Enable "FALSE"
+				psmcli set dmsb.l2net.1.Port."$LLAN_PORT".Name "llan0"
+			fi
+			touch /nvram/.updatepsm_port_routermode
+		fi
+	fi
+
+if [ "xcompleted" != "x`syscfg get cbr2_psm_migration`" ];then
+
         if [ "$MODEL_NUM" = "CGA4332COM" ];then
                 rm -rf "$MIGRATION_FILE"
                 psmcli set dmsb.l2net.1.Members.SW ""
                 psmcli set dmsb.l2net.1.Members.Moca "moca0"
-                psmcli set dmsb.l2net.1.Members.Eth "eth0 eth1 eth2 eth3"
                 psmcli set dmsb.l2net.1.Members.WiFi "wl0 wl1"
                 psmcli set dmsb.l2net.1.Port.6.Name "wl0"
                 psmcli set dmsb.l2net.1.Port.6.LinkName "wl0"
+                psmcli set dmsb.l2net.1.Members.Eth "eth0 eth1 eth2 eth3 eth4"
 
                 for i in 1 2 3 4 5 6 7 8
                 do
@@ -184,43 +220,32 @@ if [ "xcompleted" != "x`syscfg get psm_migration`" ];then
                 psmcli set dmsb.l2net.5.Port.3.Name "wl1.7"
                 psmcli set dmsb.l2net.5.Port.3.LinkName "wl1.7"
 
-                migrationCompleteFlag=1
-        fi
+                eval `psmcli get -e Bridge_Instance dmsb.hotspot.tunnel.1.interface.5.AssociatedBridges`
+                Inst=`echo $Bridge_Instance |cut -d . -f 4`
 
-	if [ "$migrationCompleteFlag" -eq 1 ];then
-		syscfg set psm_migration "completed"
-                syscfg commit
-	fi
-fi
-#if device is FR in other builds which is not having bridgeUtil or OVS support, device will have wrong psm config. 
-#need to correct psm config 
-if [ "$migrationCompleteFlag" -eq 0 ];then
-	if [ "$MODEL_NUM" = "CGM4140COM" ] || [ "$MODEL_NUM" = "TG3482G" ] || [ "$MODEL_NUM" = "CGM4981COM" ] || [ "$MODEL_NUM" = "CGM4331COM" ] || [ "$MODEL_NUM" = "TG4482A" ];then
-		for i in 1 2
-		do
-			if [ "xl2sd0-t" = "x`psmcli get dmsb.l2net."$i".Members.Link`" ];then
-				psmcli set dmsb.l2net."$i".Members.Link ""
-			fi
-		done
-	fi
-	if [ "$MODEL_NUM" = "TG4482A" ];then
-		if [ "x" = "x`psmcli get dmsb.l2net.11.Members.Link`" ];then
-			psmcli set dmsb.l2net.11.Members.Link "nrgmii2 nsgmii0 sw_2 sw_3"
-		fi
-                if [ "8" != "`psmcli get dmsb.MultiLAN.EthBhaul_l3net`" ];then
-                        psmcli set dmsb.MultiLAN.EthBhaul_l3net 8
+                if [ $Inst -eq 11 ] ; then
+                   psmcli set dmsb.hotspot.tunnel.1.interface.5.AssociatedBridges "Device.Bridging.Bridge.16."
+                   psmcli set dmsb.hotspot.tunnel.1.interface.5.AssociatedBridgesWiFiPort "Device.Bridging.Bridge.16.Port.2."
                 fi
-	fi
+                psmcli set dmsb.l2net.11.Members.Link "eth0 eth1 eth2 eth3 eth4 eth5"
+
+                cbr2_migrationCompleteFlag=1
+        fi
+        if [ "$cbr2_migrationCompleteFlag" -eq 1 ];then
+                syscfg set cbr2_psm_migration "completed"
+                syscfg commit
+        fi
 fi
 
-	if [ "$MODEL_NUM" = "TG3482G" ] || [ "$MODEL_NUM" = "TG4482A" ] ;then
-		if [ ! -f "/nvram/.updatepsm_port_routermode" ];then
-			LLAN_PORT=$(psmcli get dmsb.MultiLAN.PrimaryLAN_brport)
-			if [ "$BRIDGE_MODE" -eq 0 ];then
-				psmcli set dmsb.l2net.1.Port."$LLAN_PORT".Enable "FALSE"
-				psmcli set dmsb.l2net.1.Port."$LLAN_PORT".Name "llan0"
-			fi
-			touch /nvram/.updatepsm_port_routermode
-		fi
-	fi
+if [ "$cbr2_migrationCompleteFlag" -eq 0 ];then
+       if [ "$MODEL_NUM" = "CGA4332COM" ];then
+            eval `psmcli get -e Bridge_Instance dmsb.hotspot.tunnel.1.interface.5.AssociatedBridges`
+            Inst=`echo $Bridge_Instance |cut -d . -f 4`
+
+            if [ $Inst -eq 11 ] ; then
+                psmcli set dmsb.hotspot.tunnel.1.interface.5.AssociatedBridges "Device.Bridging.Bridge.16."
+                psmcli set dmsb.hotspot.tunnel.1.interface.5.AssociatedBridgesWiFiPort "Device.Bridging.Bridge.16.Port.2."
+            fi
+        fi
+fi
 exit 0
