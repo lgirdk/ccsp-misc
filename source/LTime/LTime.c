@@ -150,7 +150,10 @@ int main( int argc, char *argv[]) {
           strftime(str_local, DATE_MAX_STR_SIZE, DATE_FMT_M, &now_tm_local);
           printf("%s\n", str_local);
       }
-      
+       if (argv[1][0] == 'O') // print offset
+      {
+            printf("%ld\n", off);
+      }
   }
   else if( argc > 2 ) {
      printf("Too many arguments supplied.\n");
