@@ -62,11 +62,8 @@ static int get_dhcpv4_opt_list (dhcp_params * params, dhcp_opt_list ** req_opt_l
 #endif
 
 #if defined(_HUB4_PRODUCT_REQ_)
-    if (strncmp(params->baseIface, "eth", 3) == 0)
-    {
-        DBG_PRINT("%s %d: Adding Option 43 \n", __FUNCTION__, __LINE__);
-        add_dhcp_opt_to_list(req_opt_list, DHCPV4_OPT_43, NULL);
-    }
+    DBG_PRINT("%s %d: interface=[%s] Adding Option 43 \n", __FUNCTION__, __LINE__, params->baseIface);
+    add_dhcp_opt_to_list(req_opt_list, DHCPV4_OPT_43, NULL);
 #else
     UNUSED_VARIABLE(params);
 #endif
