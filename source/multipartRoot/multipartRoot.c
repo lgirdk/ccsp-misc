@@ -135,7 +135,8 @@ int processEncoding(char *filename, char *encoding, int isBlob)
 		if(encodedLen > 0 && encodedData != NULL)
 		{
 			temp = strdup(filename);
-			sprintf(outFile,"%s.bin",strtok(temp, "."));
+			/* CID 155145 fix */
+			snprintf(outFile, sizeof(outFile), "%s.bin", strtok(temp, "."));
 			printf("Encoding is success. Hence writing encoded data to %s\n",outFile);
 			if(writeToFile(outFile, encodedData, encodedLen) == 0)
 			{
