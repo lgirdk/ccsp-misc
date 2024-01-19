@@ -498,7 +498,7 @@ static int parseArgs(const char *cmd, const char *args, char ***argv)
  * @return     : returns the pid of the program started.
  *
  */
-pid_t start_exe(char * exe, char * args)
+pid_t start_exe(char * exe, char * args, char *envlist[])
 {
     int32_t pid = 0;
     char **argv = NULL;
@@ -584,6 +584,14 @@ pid_t start_exe(char * exe, char * args)
         signal(SIGPROF, SIG_DFL);
         signal(SIGXCPU, SIG_DFL);
         signal(SIGXFSZ, SIG_DFL);
+
+        if (envlist)
+        {
+            while (*envlist)
+            {
+                putenv(*envlist++);
+            }
+        }
 
         int err = execv(exe, argv);
 
