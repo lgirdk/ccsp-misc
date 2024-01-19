@@ -724,7 +724,7 @@ bool create_bridge_api(interact_request *request, ovs_interact_cb callback)
 
 	if ( 1 == ovsEnable )
 	{
-		bridge_util_log("%s ovs is enabled, calling ovs api with USE_LINUX_BRIDGE \n", __FUNCTION__ );
+		bridge_util_log("%s ovs is enabled, calling ovs api \n", __FUNCTION__ );
 		return (ovs_agent_api_interact(&request->ovs_request,callback));
 	}
 	else
@@ -740,7 +740,6 @@ bool create_bridge_api(interact_request *request, ovs_interact_cb callback)
 	{
 		bridge_util_log("callback is NULL\n"); 
 	}
-	bridge_util_log("%s ovs is disabled, calling linux api without USE_LINUX_BRIDGE \n", __FUNCTION__ );
 	if ( 1 == bridgeUtilEnable )
 	{
 		bridge_util_log("%s ovs is disabled, and bridgeUtilEnable is enabled calling brctl api's create bridge \n", __FUNCTION__ );
