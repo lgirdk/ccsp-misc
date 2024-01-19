@@ -83,7 +83,7 @@ pid_t start_dhcpv4_client (dhcp_params * params);
 int stop_udhcpc (dhcp_params * params);
 pid_t start_dhcpv6_client (dhcp_params * params);
 int stop_dhcpv6_client (dhcp_params * params);
-pid_t start_exe(char * exe, char * args);
+pid_t start_exe(char * exe, char * args, char *envlist[]);
 pid_t get_process_pid (char * name, char * args, bool waitForProcEntry);
 int collect_waiting_process(int pid, int timeout);
 void free_opt_list_data (dhcp_opt_list * opt_list);
