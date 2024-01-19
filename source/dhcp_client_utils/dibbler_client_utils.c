@@ -304,6 +304,9 @@ pid_t start_dibbler (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_op
     pid_t pid;
     char custom_cfg_path[128];
     char cmd_args[256];
+    char resolv_ifaces[128];
+    char resolv_path[128];
+    char *envlist[3] = { NULL };
 
     if (params == NULL)
     {
@@ -340,7 +343,16 @@ pid_t start_dibbler (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_op
         snprintf(cmd_args, sizeof(cmd_args), "%s -w %s", DIBBLER_CLIENT_RUN_CMD, custom_cfg_path);
     }
 
-    pid = start_exe(DIBBLER_CLIENT_PATH, cmd_args);
+    if (!strcmp(params->ifname, "mg0") || !strcmp(params->ifname, "voip0"))
+    {
+        envlist[0] = resolv_ifaces;
+        envlist[1] = resolv_path;
+        envlist[2] = NULL;
+        snprintf(resolv_ifaces, sizeof(resolv_ifaces), "RESOLVCONF_IFACE_PATTERNS=%s %s.*", params->ifname, params->ifname);
+        snprintf(resolv_path, sizeof(resolv_path), "DYNAMICRSLVCNFFILE=/tmp/%s-resolv.conf", params->ifname);
+    }
+
+    pid = start_exe(DIBBLER_CLIENT_PATH, cmd_args, envlist);
     if (pid <= 0)
     {
         DBG_PRINT("%s %d: unable to start dibbler-client %d.\n", __FUNCTION__, __LINE__, pid);
