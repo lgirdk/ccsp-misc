@@ -306,7 +306,7 @@ pid_t start_udhcpc (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_opt
 
     DBG_PRINT("%s %d: Starting udhcpc.\n", __FUNCTION__, __LINE__);
 
-    pid = start_exe(UDHCPC_CLIENT_PATH, buff);
+    pid = start_exe(UDHCPC_CLIENT_PATH, buff, NULL);
 
 #ifdef UDHCPC_RUN_IN_BACKGROUND
     // udhcpc-client will demonize a child thread during start, so we need to collect the exited main thread
