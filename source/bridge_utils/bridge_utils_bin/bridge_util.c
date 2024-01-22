@@ -1674,10 +1674,12 @@ OVSACTION:
 	    				pGwConfig->vlan_id = vlanId ;
 					if ( bridgeInfo->VirtualParentIfname[0] != '\0' )
 					{
-						/* CID 339902: String not null terminated */
+
 						if (strlen(bridgeInfo->VirtualParentIfname) < MAX_IF_NAME_SIZE )
 						{
 						    strncpy(pGwConfig->parent_ifname,bridgeInfo->VirtualParentIfname,sizeof(pGwConfig->parent_ifname)-1);
+							/* CID 339902: String not null terminated */
+							pGwConfig->parent_ifname[sizeof(pGwConfig->parent_ifname) - 1] = '\0'; 
 						}
 						else
 						{
