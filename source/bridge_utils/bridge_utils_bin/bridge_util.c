@@ -507,7 +507,7 @@ void enableMoCaIsolationSettings (bridgeDetails *bridgeInfo)
         int ret = 0;
 	char ipaddr[32] = {0} ;
 	int  mocaIsolationL3NetIdx = 0;  
-	char subNetMask[64];
+	char subNetMask[64] = {0};
 	snprintf(paramName,sizeof(paramName), mocaIsolationL3Net);
 	retPsmGet = PSM_Get_Record_Value2(bus_handle,g_Subsystem, paramName, NULL, &paramValue);
 	if (retPsmGet == CCSP_SUCCESS) 
