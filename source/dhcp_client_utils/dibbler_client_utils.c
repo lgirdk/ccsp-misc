@@ -295,7 +295,21 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
     }
 
     // dibber-client uses default config to generate DUID, so linking default file to tmp file
-    link (DIBBLER_TMP_CONFIG_FILE, DIBBLER_DEFAULT_CONFIG_FILE);
+    
+    /* CID 349554 Unchecked return value */
+    if (access(DIBBLER_DEFAULT_CONFIG_FILE, F_OK) == 0) {
+        DBG_PRINT("%s %d: link already exists, continuing\n", __FUNCTION__, __LINE__);
+        return SUCCESS;
+    } else {
+        // Creating the link only if it doesn't already exist
+        if (link(DIBBLER_TMP_CONFIG_FILE, DIBBLER_DEFAULT_CONFIG_FILE) == 0) {
+            DBG_PRINT("%s %d: link created successfully\n", __FUNCTION__, __LINE__);
+            return SUCCESS;
+        } else {
+            DBG_PRINT("%s %d: unable to create link: %s\n", __FUNCTION__, __LINE__, strerror(errno));
+            return FAILURE;
+        }
+    }
 
     return SUCCESS;
 
