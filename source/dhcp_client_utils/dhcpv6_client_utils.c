@@ -137,8 +137,7 @@ pid_t start_dhcpv6_client (dhcp_params * params)
         fp_dad = popen(cmd, "r");
         if(fp_dad != NULL) 
         {
-            fgets(buffer, BUFLEN_256, fp_dad);
-            if(strlen(buffer) == 0 ) 
+            if ((fgets(buffer, BUFLEN_256, fp_dad) == NULL) || (strlen(buffer) == 0))
             {
                 pclose(fp_dad);
                 break;
