@@ -98,9 +98,15 @@ pid_t start_dhcpv4_client (dhcp_params * params)
 
     pid_t pid = FAILURE;
 
-#if DHCPV4_CLIENT_TI_UDHCPC
-    pid =  start_ti_udhcpc (params);
-    return pid;
+#ifdef  DHCPV4_CLIENT_TI_UDHCPC
+    char udhcpcV2Enabled[BUFLEN_16] = {0};
+    syscfg_get(NULL, "UDHCPEnable_v2", udhcpcV2Enabled, sizeof(udhcpcV2Enabled));
+    if (strcmp(udhcpcV2Enabled, "true"))
+    {
+        DBG_PRINT("%s %d: TI_UDHCPC enabled \n", __FUNCTION__, __LINE__);
+        pid =  start_ti_udhcpc (params);
+        return pid;
+    }
 #endif
 
     // init part
@@ -155,11 +161,13 @@ int stop_dhcpv4_client (dhcp_params * params)
         return FAILURE;
     }
 
-#ifdef DHCPV4_CLIENT_TI_UDHCPC 
-    return stop_ti_udhcpc (params);
-#else
-    return stop_udhcpc (params);
+#ifdef  DHCPV4_CLIENT_TI_UDHCPC
+    char udhcpcV2Enabled[BUFLEN_16] = {0};
+    syscfg_get(NULL, "UDHCPEnable_v2", udhcpcV2Enabled, sizeof(udhcpcV2Enabled));
+    if (strcmp(udhcpcV2Enabled, "true"))
+    {
+        return stop_ti_udhcpc (params);
+    }
 #endif
-    return SUCCESS;
-
+    return stop_udhcpc (params);
 }

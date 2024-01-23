@@ -108,6 +108,20 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
         return FAILURE;
     }
 
+    //Create /etc/dibbler/radvd.conf file if doesn't exist
+    FILE *radvdFile;
+    radvdFile = fopen(DIBBLER_RADVD_FILE_OLD, "a"); 
+    if(radvdFile != NULL)
+    {
+        fclose(radvdFile);
+    }
+
+    radvdFile = fopen(DIBBLER_RADVD_FILE, "a");
+    if(radvdFile != NULL)
+    {
+        fclose(radvdFile);
+    }
+
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
     char mapt_feature_enable[BUFLEN_16] = {0};
 #endif
@@ -135,7 +149,7 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
 
     bool option20Found = 0;
     dhcp_opt_list * opt_list = NULL;
-    char args [BUFLEN_128] = {0};
+    char args [BUFLEN_512] = {0};
 
     if (param->ifType == WAN_LOCAL_IFACE)
     {
@@ -143,26 +157,26 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
         opt_list = req_opt_list;
         while (opt_list)
         {
-            memset (&args, 0, BUFLEN_128);
+            memset (&args, 0, sizeof(args));
 
             if (opt_list->dhcp_opt == DHCPV6_OPT_5)
             {
-                snprintf (args, BUFLEN_128, "\n\t%s \n", "ia");
+                snprintf (args, sizeof(args), "\n\t%s \n", (opt_list->dhcp_opt_val == NULL)?"ia":opt_list->dhcp_opt_val);
                 fputs(args, fout);
             }
             else if (opt_list->dhcp_opt == DHCPV6_OPT_23)
             {
-                snprintf (args, BUFLEN_128, "\n\t%s \n", "option dns-server");
+                snprintf (args, sizeof(args), "\n\t%s \n", "option dns-server");
                 fputs(args, fout);
             }
             else if (opt_list->dhcp_opt == DHCPV6_OPT_25)
             {
-                snprintf (args, BUFLEN_128, "\n\t%s \n", "pd");
+                snprintf (args, sizeof(args), "\n\t%s \n", (opt_list->dhcp_opt_val == NULL)?"pd":opt_list->dhcp_opt_val);
                 fputs(args, fout);
             }
             else if (opt_list->dhcp_opt == DHCPV6_OPT_24)
             {
-                snprintf (args, BUFLEN_128, "\n\t%s \n", "option domain");
+                snprintf (args, sizeof(args), "\n\t%s \n", "option domain");
                 fputs(args, fout);
             }
             else if (opt_list->dhcp_opt == DHCPV6_OPT_95)
@@ -173,7 +187,7 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
                     if (strncmp(mapt_feature_enable, "true", 4) == 0)
                     {
 #endif
-                        snprintf (args, BUFLEN_128, "\n\toption 00%d hex \n", opt_list->dhcp_opt);
+                        snprintf (args, sizeof(args), "\n\toption 00%d hex \n", opt_list->dhcp_opt);
                         fputs(args, fout);
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
                     }
@@ -186,7 +200,7 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
             }
             else
             {
-                snprintf (args, BUFLEN_128, "\n\toption 00%d hex \n", opt_list->dhcp_opt);
+                snprintf (args, sizeof(args), "\n\toption 00%d hex \n", opt_list->dhcp_opt);
                 fputs(args, fout);
             }
             opt_list = opt_list->next;
@@ -196,7 +210,7 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
         opt_list = send_opt_list;
         while (opt_list)
         {
-            memset (&args, 0, BUFLEN_128);
+            memset (&args, 0, sizeof(args));
             if (opt_list->dhcp_opt == DHCPV6_OPT_15)
             {
                 char str[32]={0};
@@ -214,7 +228,7 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
                     strncat(option15,temp,3);
                 }
 
-                snprintf (args, BUFLEN_128, "\n\toption 00%d hex %s\n", opt_list->dhcp_opt,option15 );
+                snprintf (args, sizeof(args), "\n\toption 00%d hex %s\n", opt_list->dhcp_opt,option15 );
                 fputs(args, fout);
             }
             else if (opt_list->dhcp_opt == DHCPV6_OPT_20)
@@ -233,7 +247,7 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
             }
             else
             {
-                snprintf (args, BUFLEN_128, "\n\toption 00%d hex \n", opt_list->dhcp_opt);
+                snprintf (args, sizeof(args), "\n\toption 00%d hex \n", opt_list->dhcp_opt);
                 fputs(args, fout);
             }
             opt_list = opt_list->next;
@@ -247,7 +261,7 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
 
     if(option20Found)
     {
-        snprintf (args, BUFLEN_128, "\n%s\n", "reconfigure-accept 1");
+        snprintf (args, sizeof(args), "\n%s\n", "reconfigure-accept 1");
         fputs(args, fout);
     }
     fclose(fout);

@@ -163,7 +163,12 @@ pid_t start_dhcpv6_client (dhcp_params * params)
     }
 
 #ifdef DHCPv6_CLIENT_TI_DHCP6C
-    return start_ti_dhcp6c (params);
+    char dibblerV2Enabled[BUFLEN_16] = {0};
+    syscfg_get(NULL, "dibbler_client_enable_v2", dibblerV2Enabled, sizeof(dibblerV2Enabled));
+    if (strcmp(dibblerV2Enabled, "true"))
+    {
+        return start_ti_dhcp6c (params);
+    }
 #endif
 
     // init part
@@ -226,10 +231,14 @@ int stop_dhcpv6_client (dhcp_params * params)
     sysevent_close(dhcp_sysevent_fd, dhcp_sysevent_token);
 
 #if DHCPv6_CLIENT_TI_DHCP6C
-    return stop_ti_dhcp6c (params);
-#else
-    return stop_dibbler (params);
+    char dibblerV2Enabled[BUFLEN_16] = {0};
+    syscfg_get(NULL, "dibbler_client_enable_v2", dibblerV2Enabled, sizeof(dibblerV2Enabled));
+    if (strcmp(dibblerV2Enabled, "true"))
+    {
+        return stop_ti_dhcp6c (params);
+    }
 #endif
+    return stop_dibbler (params);
     return 0;
 
 }

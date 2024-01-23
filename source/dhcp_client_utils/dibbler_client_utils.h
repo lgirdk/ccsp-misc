@@ -41,6 +41,8 @@
 #define DIBBLER_DUID_LL_CONFIG            "duid-type duid-ll\n"  
 #define DIBBLER_CLIENT_TERMINATE_INTERVAL (0.5 * MSECS_IN_SEC)
 #define DIBBLER_TMP_DIR_PATH              "/var/lib/dibbler"
+#define DIBBLER_RADVD_FILE                "/etc/dibbler/radvd.conf"
+#define DIBBLER_RADVD_FILE_OLD            "/etc/dibbler/radvd.conf.old"
 
 typedef struct {
     dhcp_params * if_param;
