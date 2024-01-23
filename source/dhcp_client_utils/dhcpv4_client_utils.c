@@ -52,6 +52,8 @@ static pid_t start_ti_udhcpc (dhcp_params * params)
 }
 #endif  // DHCPV4_CLIENT_TI_UDHCPC
 
+#ifdef EROUTER_DHCP_OPTION_MTA
+
 static int verifyBufferSpace(const int length, int opt_len, int size)
 {
     if (length - opt_len <= size) {
@@ -543,6 +545,8 @@ static int add_dhcpv4_opt_to_list (dhcp_opt_list ** opt_list, int opt, char * op
     return RETURN_OK;
 
 }
+
+#endif
 
 /*
  * get_dhcpv4_opt_list ()
