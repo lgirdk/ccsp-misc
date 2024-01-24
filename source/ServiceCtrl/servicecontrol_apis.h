@@ -20,7 +20,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <rbus.h>
+#include <rbus/rbus.h>
 #include "safec_lib_common.h"
 #include "ansc_platform.h"
 #include <secure_wrapper.h>
