@@ -27,7 +27,7 @@
 #include <getopt.h>
 #include <signal.h>
 #include <stdint.h>
-#include <rbus.h>
+#include <rbus/rbus.h>
 
 rbusHandle_t handle;
 
