@@ -35,7 +35,7 @@
 #define DIBBLER_TEMPLATE_CONFIG_FILE "/tmp/dibbler/client-template.conf"
 #define DIBBLER_CLIENT_PIDFILE       "/tmp/dibbler/client.pid"
 #define DIBBLER_DEFAULT_CONFIG_FILE       "/tmp/dibbler/client.conf"
-#define DIBBLER_CLIENT_TERMINATE_TIMEOUT  (5 * MSECS_IN_SEC)
+#define DIBBLER_CLIENT_TERMINATE_TIMEOUT  (10 * MSECS_IN_SEC)
 #define DIBBLER_SCRIPT_FILE               "/lib/rdk/client-notify.sh"
 #define DIBBLER_LOG_CONFIG                "log-level 7\nlog-mode full\n"
 #define DIBBLER_DUID_LL_CONFIG            "duid-type duid-ll\n"  
