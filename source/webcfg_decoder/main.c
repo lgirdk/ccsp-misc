@@ -28,7 +28,7 @@
 #include <string.h>
 #include <msgpack.h>
 #include <trower-base64/base64.h>
-#include <rbus.h>
+#include <rbus/rbus.h>
 
 #define MAX_HEADER_LEN		   4096
 #define MAX_BUF_SIZE	           256
