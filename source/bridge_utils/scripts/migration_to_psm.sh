@@ -172,7 +172,7 @@ fi
 		fi
 	fi
 
-if [ "xcompleted" != "x`syscfg get cbr2_psm_migration`" ];then
+if [ "xcompleted" != "x`syscfg get cbrv2_psm_migration`" ];then
 
         if [ "$MODEL_NUM" = "CGA4332COM" ];then
                 rm -rf "$MIGRATION_FILE"
@@ -220,32 +220,66 @@ if [ "xcompleted" != "x`syscfg get cbr2_psm_migration`" ];then
                 psmcli set dmsb.l2net.5.Port.3.Name "wl1.7"
                 psmcli set dmsb.l2net.5.Port.3.LinkName "wl1.7"
 
-                eval `psmcli get -e Bridge_Instance dmsb.hotspot.tunnel.1.interface.5.AssociatedBridges`
-                Inst=`echo $Bridge_Instance |cut -d . -f 4`
+                psmcli set dmsb.hotspot.tunnel.1.interface.5.AssociatedBridges "Device.Bridging.Bridge.11."
+                psmcli set dmsb.hotspot.tunnel.1.interface.5.AssociatedBridgesWiFiPort "Device.Bridging.Bridge.11.Port.2."
 
-                if [ $Inst -eq 11 ] ; then
-                   psmcli set dmsb.hotspot.tunnel.1.interface.5.AssociatedBridges "Device.Bridging.Bridge.16."
-                   psmcli set dmsb.hotspot.tunnel.1.interface.5.AssociatedBridgesWiFiPort "Device.Bridging.Bridge.16.Port.2."
-                fi
-                psmcli set dmsb.l2net.11.Members.Link "eth0 eth1 eth2 eth3 eth4 eth5"
+                psmcli set dmsb.l2net.3.Members.Gre "gretap0"
+                psmcli set dmsb.l2net.4.Members.Gre "gretap0"
+                psmcli set dmsb.l2net.7.Members.Gre "gretap0"
+                psmcli set dmsb.l2net.8.Members.Gre "gretap0"
+                psmcli set dmsb.l2net.11.Members.Gre "gretap0"
+                psmcli set dmsb.l2net.11.Members.Link "l2sd0"
+                psmcli set dmsb.l2net.11.Vid "2346"
+                psmcli set dmsb.l2net.11.Name "brpublic"
+                psmcli set dmsb.l2net.11.Alias "Hotspot Network 5"
+                psmcli set dmsb.l2net.11.Members.WiFi "wl1.7"
+
+                psmcli del dmsb.l2net.16.Vid
+                psmcli del dmsb.l2net.16.Standard
+                psmcli del dmsb.l2net.16.Alias
+                psmcli del dmsb.l2net.16.Type
+
+                psmcli del dmsb.l2net.16.Members.Eth
+                psmcli del dmsb.l2net.16.Members.SW
+                psmcli del dmsb.l2net.16.Members.WiFi
+                psmcli del dmsb.l2net.16.Members.Gre
+                psmcli del dmsb.l2net.16.Members.Moca
+                psmcli del dmsb.l2net.16.Members.Link
+                psmcli del dmsb.l2net.16.PriorityTag
+                psmcli del dmsb.l2net.16.AllowDelete
+                psmcli del dmsb.l2net.16.Enable
+                psmcli del dmsb.l2net.16.Vlan.1.InstanceNum
+                psmcli del dmsb.l2net.16.Vlan.1.Alias
+                psmcli del dmsb.l2net.16.InstanceNum
+                psmcli del dmsb.l2net.16.Name
+
+                for i in 1 2 3
+                do
+
+                  psmcli del dmsb.l2net.16.Port.$i.Management
+                  psmcli del dmsb.l2net.16.Port.$i.Mode
+                  psmcli del dmsb.l2net.16.Port.$i.Pvid
+                  psmcli del dmsb.l2net.16.Port.$i.LinkType
+                  psmcli del dmsb.l2net.16.Port.$i.Alias
+                  psmcli del dmsb.l2net.16.Port.$i.PriorityTag
+                  psmcli del dmsb.l2net.16.Port.$i.Upstream
+                  psmcli del dmsb.l2net.16.Port.$i.AllowDelete
+                  psmcli del dmsb.l2net.16.Port.$i.Enable
+                  psmcli del dmsb.l2net.16.Port.$i.InstanceNum
+                  psmcli del dmsb.l2net.16.Port.$i.Name
+                  psmcli del dmsb.l2net.16.Port.$i.LinkName
+
+                done
 
                 cbr2_migrationCompleteFlag=1
         fi
         if [ "$cbr2_migrationCompleteFlag" -eq 1 ];then
-                syscfg set cbr2_psm_migration "completed"
+                syscfg set cbrv2_psm_migration "completed"
+                if [ "xcompleted" == "x`syscfg get cbr2_psm_migration`" ];then
+                      syscfg unset cbr2_psm_migration
+                fi
                 syscfg commit
         fi
 fi
 
-if [ "$cbr2_migrationCompleteFlag" -eq 0 ];then
-       if [ "$MODEL_NUM" = "CGA4332COM" ];then
-            eval `psmcli get -e Bridge_Instance dmsb.hotspot.tunnel.1.interface.5.AssociatedBridges`
-            Inst=`echo $Bridge_Instance |cut -d . -f 4`
-
-            if [ $Inst -eq 11 ] ; then
-                psmcli set dmsb.hotspot.tunnel.1.interface.5.AssociatedBridges "Device.Bridging.Bridge.16."
-                psmcli set dmsb.hotspot.tunnel.1.interface.5.AssociatedBridgesWiFiPort "Device.Bridging.Bridge.16.Port.2."
-            fi
-        fi
-fi
 exit 0
