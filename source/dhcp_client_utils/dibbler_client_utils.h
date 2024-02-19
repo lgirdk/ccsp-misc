@@ -40,6 +40,7 @@
 #define DIBBLER_LOG_CONFIG                "log-level 7\nlog-mode full\n"
 #define DIBBLER_DUID_LL_CONFIG            "duid-type duid-ll\n"  
 #define DIBBLER_CLIENT_TERMINATE_INTERVAL (0.5 * MSECS_IN_SEC)
+#define DIBBLER_TMP_DIR_PATH              "/var/lib/dibbler"
 
 typedef struct {
     dhcp_params * if_param;

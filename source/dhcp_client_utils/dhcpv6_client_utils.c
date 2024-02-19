@@ -108,6 +108,9 @@ pid_t start_dhcpv6_client (dhcp_params * params)
         return 0;
     }
 
+    //Check if default dibbler tmp path available or not. If not then create it
+    create_dir_path(DIBBLER_TMP_DIR_PATH);
+
     pid_t pid = 0;
     pid = get_process_pid(DIBBLER_CLIENT, params->ifname, false);
     if (pid > 0)
