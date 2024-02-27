@@ -19,7 +19,7 @@
 
 #include "dhcp_client_utils.h"
 #include "udhcpc_client_utils.h"
-#ifdef  DHCPV4_CLIENT_TI_UDHCPC
+#ifdef DHCPV4_CLIENT_TI_UDHCPC
 #include "ti_udhcpc_client_utils.h"
 #endif
 #include <syscfg/syscfg.h>
@@ -96,7 +96,7 @@ pid_t start_dhcpv4_client (dhcp_params * params)
 
     pid_t pid = FAILURE;
 
-#if DHCPV4_CLIENT_TI_UDHCPC
+#ifdef DHCPV4_CLIENT_TI_UDHCPC
     pid =  start_ti_udhcpc (params);
     return pid;
 #endif
