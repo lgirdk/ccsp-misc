@@ -89,3 +89,4 @@ int collect_waiting_process(int pid, int timeout);
 void free_opt_list_data (dhcp_opt_list * opt_list);
 int signal_process (pid_t pid, int signal);
 int add_dhcp_opt_to_list (dhcp_opt_list ** opt_list, int opt, char * opt_val);
+void create_dir_path(const char *dirpath);

@@ -663,3 +663,28 @@ void free_opt_list_data (dhcp_opt_list * opt_list)
     }
 
 }
+
+/*
+ * create_dir_path ()
+ * @description: This function is called to create a directory if it is not exist.
+ * @params     : dirpath - directory path
+ * @return     : no return.
+ *
+ */
+void create_dir_path(const char *dirpath)
+{
+    if( NULL == dirpath )
+    {
+       return;
+    }
+
+    struct stat st;
+
+    if ( !((0 == stat(dirpath, &st)) && S_ISDIR(st.st_mode)) )
+    {
+        // directory does not exists, so create it
+        mkdir(dirpath, 0644);
+    }
+
+    return;
+}
