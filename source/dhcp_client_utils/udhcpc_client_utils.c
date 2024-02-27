@@ -35,6 +35,8 @@
  */
 static int udhcpc_get_req_options (char * buff, size_t buff_size, dhcp_opt_list * req_opt_list)
 {
+    int n = 0;
+    size_t cur_pos;
 
     if (buff == NULL)
     {
@@ -48,34 +50,31 @@ static int udhcpc_get_req_options (char * buff, size_t buff_size, dhcp_opt_list 
         return SUCCESS;
     }
 
-    char args [BUFLEN_16] = {0};
-
+    cur_pos = strlen(buff);
     while (req_opt_list)
     {
-        memset (&args, 0, BUFLEN_16);
         if (req_opt_list->dhcp_opt == DHCPV4_OPT_2)
 	    {
             /* CID 189999 Calling risky function */
-            snprintf(args, (BUFLEN_16-1),"-O timezone ");
+            n = snprintf(buff + cur_pos, buff_size - cur_pos, "-O timezone ");
         }
         else if (req_opt_list->dhcp_opt == DHCPV4_OPT_42)
         {
-            snprintf(args, (BUFLEN_16-1),"-O ntpsrv ");
+            n = snprintf(buff + cur_pos, buff_size - cur_pos, "-O ntpsrv ");
         }
         else
         {
-            snprintf (args, (BUFLEN_16-1), "-O %d ", req_opt_list->dhcp_opt);
+            n = snprintf (buff + cur_pos, buff_size - cur_pos, "-O %d ", req_opt_list->dhcp_opt);
         }
-        req_opt_list = req_opt_list->next;
 
-        if(strlen(buff) < (buff_size - BUFLEN_16))
+        if (n < 0 || n >= buff_size - cur_pos)
         {
-            strncat(buff, args, BUFLEN_16 - 1);
+            DBG_PRINT("%s %d: Insufficient buff size or snprintf error\n", __FUNCTION__, __LINE__);
+            return FAILURE;
         }
-        else
-        {
-            DBG_PRINT("%s %d: Insufficient buff size \n", __FUNCTION__, __LINE__);
-        }
+
+        cur_pos += n;
+        req_opt_list = req_opt_list->next;
     }
 
     DBG_PRINT("%s %d: get req args - %s\n", __FUNCTION__, __LINE__, buff);
@@ -94,6 +93,8 @@ static int udhcpc_get_req_options (char * buff, size_t buff_size, dhcp_opt_list 
  */
 static int udhcpc_get_send_options (char * buff, size_t buff_size, dhcp_opt_list * send_opt_list)
 {
+    int n = 0;
+    size_t cur_pos;
 
     if (buff == NULL)
     {
@@ -107,28 +108,25 @@ static int udhcpc_get_send_options (char * buff, size_t buff_size, dhcp_opt_list
         return SUCCESS;
     }
 
+    cur_pos = strlen(buff);
     while ((send_opt_list != NULL) && (send_opt_list->dhcp_opt_val != NULL))
     {
-        char args[512];
-
-        args[0] = 0;
-
         if (send_opt_list->dhcp_opt == DHCPV4_OPT_60)
         {
             // Option 60 - Vendor Class Identifier has udhcp cmd line arg "-V <option-str>"
-            snprintf (args, sizeof(args), "-V %s ", send_opt_list->dhcp_opt_val);
+            n = snprintf(buff + cur_pos, buff_size - cur_pos, "-V %s ", send_opt_list->dhcp_opt_val);
         }
         else if (send_opt_list->dhcp_opt == DHCPV4_OPT_125)
         {
-            snprintf(args, sizeof(args), "-x %d:%s ", send_opt_list->dhcp_opt, send_opt_list->dhcp_opt_val);
+            n = snprintf(buff + cur_pos, buff_size - cur_pos, "-x %d:%s ", send_opt_list->dhcp_opt, send_opt_list->dhcp_opt_val);
         }
         else if (send_opt_list->dhcp_opt == DHCPV4_OPT_61)
         {
-            snprintf(args, sizeof(args), "-x 0x%02X:%s ", send_opt_list->dhcp_opt, send_opt_list->dhcp_opt_val);
+            n = snprintf(buff + cur_pos, buff_size - cur_pos, "-x 0x%02X:%s ", send_opt_list->dhcp_opt, send_opt_list->dhcp_opt_val);
         }
         else if (send_opt_list->dhcp_opt == DHCPV4_OPT_43)
         {
-            snprintf(args, sizeof(args), "-x %s ", send_opt_list->dhcp_opt_val);
+            n = snprintf(buff + cur_pos, buff_size - cur_pos, "-x %s ", send_opt_list->dhcp_opt_val);
         }
         else
         {
@@ -136,22 +134,21 @@ static int udhcpc_get_send_options (char * buff, size_t buff_size, dhcp_opt_list
             char * buffer = ascii_to_hex (send_opt_list->dhcp_opt_val, strlen(send_opt_list->dhcp_opt_val));
             if (buffer != NULL)
             {
-                snprintf (args, sizeof(args), "-x 0x%02X:%s ", send_opt_list->dhcp_opt, buffer);
+                snprintf (buff + cur_pos, buff_size - cur_pos, "-x 0x%02X:%s ", send_opt_list->dhcp_opt, buffer);
                 free(buffer);
             }
 */
-            snprintf (args, BUFLEN_128, "-x 0x%02X:%s ", send_opt_list->dhcp_opt, send_opt_list->dhcp_opt_val);
+            n = snprintf (buff + cur_pos, buff_size - cur_pos, "-x 0x%02X:%s ", send_opt_list->dhcp_opt, send_opt_list->dhcp_opt_val);
         }
+
+        if (n < 0 || n >= buff_size - cur_pos)
+        {
+            DBG_PRINT("%s %d: Insufficient buff size or snprintf error\n", __FUNCTION__, __LINE__);
+            return FAILURE;
+        }
+
+        cur_pos += n;
         send_opt_list = send_opt_list->next;
-        /* CID 189996 Calling risky function */
-        if(strlen(buff) < (buff_size - BUFLEN_128))
-        {
-            strncat(buff, args, BUFLEN_128 - 1);
-        }
-        else
-        {
-            DBG_PRINT("%s %d: Insufficient buff size \n", __FUNCTION__, __LINE__);
-        }
     }
 
     return SUCCESS;
@@ -168,88 +165,97 @@ static int udhcpc_get_send_options (char * buff, size_t buff_size, dhcp_opt_list
  */
 static int udhcpc_get_other_args (char * buff, size_t buff_size, dhcp_params * params)
 {
+    int n = 0;
+    size_t cur_pos;
+
      if ((buff == NULL) || (params == NULL))
     {
         DBG_PRINT("%s %d: Invalid args..\n", __FUNCTION__, __LINE__);
         return FAILURE;
     }
 
+    cur_pos = strlen(buff);
+
     // Add -i <ifname>
     if (params->ifname != NULL)
     {
-        char ifname_opt[BUFLEN_16] = {0};
-        snprintf (ifname_opt, sizeof(ifname_opt), "-i %s ", params->ifname);
-        /* CID 189992 Calling risky function */
-        if ((strlen(ifname_opt) < BUFLEN_16) && (strlen(buff) < (buff_size - BUFLEN_16)) )
-        {
-            strncat (buff, ifname_opt,BUFLEN_16-1);
-        }
-        else
+        n = snprintf(buff + cur_pos, buff_size - cur_pos, "-i %s ", params->ifname);
+        if (n < 0 || n >= buff_size - cur_pos)
         {
             DBG_PRINT("%s %d: Error in copying ifname \n", __FUNCTION__, __LINE__);
             return FAILURE;
         }
+        cur_pos += n;
 
         // Add -p <pidfile>
-        char pidfile[BUFLEN_32] = {0};
-        snprintf (pidfile, sizeof(pidfile), UDHCP_PIDFILE_PATTERN , params->ifname);
-        if ((strlen(pidfile) < BUFLEN_32) && (strlen(buff) < (buff_size - BUFLEN_32)) )
-        {
-            strncat (buff, pidfile, BUFLEN_32-1 );
-        }
-        else
+        n = snprintf(buff + cur_pos, buff_size - cur_pos, UDHCP_PIDFILE_PATTERN , params->ifname);
+        if (n < 0 || n >= buff_size - cur_pos)
         {
             DBG_PRINT("%s %d: Error in copying pidfile \n", __FUNCTION__, __LINE__);
             return FAILURE;
         }
+        cur_pos += n;
 
     }
 
     // Add -s <servicefile>
-    char servicefile[BUFLEN_32] = {0};
 #ifdef UDHCPC_SCRIPT_FILE
-    snprintf (servicefile, sizeof(servicefile), "-s %s ", UDHCPC_SERVICE_SCRIPT_FILE);
+    n = snprintf(buff + cur_pos, buff_size - cur_pos, "-s %s ", UDHCPC_SERVICE_SCRIPT_FILE);
 #else
     if (strcmp(params->ifname, "erouter0") == 0 || strcmp(params->ifname, "erouter1") == 0)
     {
-        snprintf (servicefile, sizeof(servicefile), "-s %s ", UDHCPC_SERVICE_EXE);
+        n = snprintf(buff + cur_pos, buff_size - cur_pos, "-s %s ", UDHCPC_SERVICE_EXE);
     }
     else
     {
-        snprintf (servicefile, sizeof(servicefile), "-s %s ", UDHCPC_MVLAN_SERVICE);
+        n = snprintf(buff + cur_pos, buff_size - cur_pos, "-s %s ", UDHCPC_MVLAN_SERVICE);
     }
 #endif
-
-    if(strlen(buff) < (buff_size - BUFLEN_32))
-    {
-        strncat (buff, servicefile, BUFLEN_32-1);
-    }
-    else
+    if (n < 0 || n >= buff_size - cur_pos)
     {
         DBG_PRINT("%s %d: Error in copying servicefile \n", __FUNCTION__, __LINE__);
         return FAILURE;
     }
-
-    if(strlen(buff) > (buff_size - BUFLEN_8))
-    {
-        DBG_PRINT("%s %d: Insufficient buffer size \n", __FUNCTION__, __LINE__);
-        return FAILURE;
-    }
+    cur_pos += n;
 
     // Add udhcpc process behavior
 #ifdef UDHCPC_RUN_IN_FOREGROUND
     // udhcpc will run in foreground
-    strncat (buff, "-f ", BUFLEN_4);
+    n = snprintf(buff + cur_pos, buff_size - cur_pos, "-f ");
+    if (n < 0 || n >= buff_size - cur_pos)
+    {
+        DBG_PRINT("%s %d: Error in adding -f option \n", __FUNCTION__, __LINE__);
+        return FAILURE;
+    }
+    cur_pos += n;
 #elif UDHCPC_RUN_IN_BACKGROUND
     // udhcpc will run in background if lease not obtained
-    strncat (buff, "-b ", BUFLEN_4);
+    n = snprintf(buff + cur_pos, buff_size - cur_pos, "-b ");
+    if (n < 0 || n >= buff_size - cur_pos)
+    {
+        DBG_PRINT("%s %d: Error in adding -b option \n", __FUNCTION__, __LINE__);
+        return FAILURE;
+    }
+    cur_pos += n;
 #elif UDHCPC_EXIT_AFTER_LEAVE_FAILURE
     // exit if lease is not obtained
-    strncat (buff, "-n ", BUFLEN_4);
+    n = snprintf(buff + cur_pos, buff_size - cur_pos, "-n ");
+    if (n < 0 || n >= buff_size - cur_pos)
+    {
+        DBG_PRINT("%s %d: Error in adding -n option \n", __FUNCTION__, __LINE__);
+        return FAILURE;
+    }
+    cur_pos += n;
 #endif
 #ifdef UDHCPC_TX_RELEASE_ON_EXIT
     // send release before exit
-    strncat (buff, "-R ", BUFLEN_4);
+    n = snprintf(buff + cur_pos, buff_size - cur_pos, "-R ");
+    if (n < 0 || n >= buff_size - cur_pos)
+    {
+        DBG_PRINT("%s %d: Error in adding -R option \n", __FUNCTION__, __LINE__);
+        return FAILURE;
+    }
+    cur_pos += n;
 #endif  // UDHCPC_TX_RELEASE_ON_EXIT
 
     return SUCCESS;
