@@ -680,7 +680,7 @@ void create_dir_path(const char *dirpath)
 
     struct stat st;
 
-    if ( !((0 == stat(dirpath, &st)) && S_ISDIR(st.st_mode)) )
+    if ( ( -1 == stat(dirpath, &st) ) || ( !S_ISDIR(st.st_mode) ) )
     {
         // directory does not exists, so create it
         mkdir(dirpath, 0644);
