@@ -23,8 +23,8 @@
 #include "ti_udhcpc_client_utils.h"
 #endif
 #include <syscfg/syscfg.h>
-#include <string.h>
 #include <sysevent/sysevent.h>
+#include <string.h>
 
 #define DUID "3561"
 #define VENDOR_SPEC_FILE "/etc/udhcpc.vendor_specific"
@@ -42,8 +42,8 @@
 #define CONFIG_VENDOR_ID "123456"
 #endif
 
-static token_t dhcp_sysevent_token;
-static int dhcp_sysevent_fd;
+static token_t dhcpv4_sysevent_token;
+static int dhcpv4_sysevent_fd;
 
 #ifdef EROUTER_DHCP_OPTION_MTA
 
@@ -702,21 +702,21 @@ pid_t start_dhcpv4_client (dhcp_params * params)
     }
 
     // building args and starting dhcpv4 client
-    dhcp_sysevent_fd =  sysevent_open(LOCALHOST, SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, sysevent_name, &dhcp_sysevent_token);
-    if (dhcp_sysevent_fd < 0)
+    dhcpv4_sysevent_fd =  sysevent_open(LOCALHOST, SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, sysevent_name, &dhcpv4_sysevent_token);
+    if (dhcpv4_sysevent_fd < 0)
     {
         DBG_PRINT("%s %d: Fail to open sysevent.\n", __FUNCTION__, __LINE__);
 	    /* CID 189993 Improper use of negative value */
 	    return FAILURE;
     }
 
-    sysevent_get(dhcp_sysevent_fd, dhcp_sysevent_token, SYSEVENT_WAN_STATUS, buf, sizeof(buf));
+    sysevent_get(dhcpv4_sysevent_fd, dhcpv4_sysevent_token, SYSEVENT_WAN_STATUS, buf, sizeof(buf));
     if ((strcmp(buf, WAN_STATUS_STARTING) != 0) && (strcmp(buf, WAN_STATUS_STARTED) != 0))
     {
-        sysevent_set(dhcp_sysevent_fd, dhcp_sysevent_token, SYSEVENT_WAN_STATUS, WAN_STATUS_STARTING, 0);
+        sysevent_set(dhcpv4_sysevent_fd, dhcpv4_sysevent_token, SYSEVENT_WAN_STATUS, WAN_STATUS_STARTING, 0);
         DBG_PRINT("%s %d - wan-status event set to starting \n", __FUNCTION__, __LINE__);
     }
-    sysevent_close(dhcp_sysevent_fd, dhcp_sysevent_token);
+    sysevent_close(dhcpv4_sysevent_fd, dhcpv4_sysevent_token);
 
     DBG_PRINT("%s %d: Starting DHCP Clients\n", __FUNCTION__, __LINE__);
 #ifdef DHCPV4_CLIENT_UDHCPC

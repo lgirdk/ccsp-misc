@@ -30,9 +30,6 @@
 #define SYSCFG_MAPT_FEATURE_ENABLE   "MAPT_Enable"
 #endif
 
-extern token_t dhcp_sysevent_token;
-extern int dhcp_sysevent_fd;
-
 
 #if 0
 static int copy_file (char * src, char * dst)
