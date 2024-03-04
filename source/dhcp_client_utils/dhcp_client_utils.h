@@ -62,6 +62,13 @@
 #define INTF_V6LL_TIMEOUT_IN_MSEC        (5 * MSECS_IN_SEC)    // 5 sec
 #define INTF_V6LL_INTERVAL_IN_MSEC       (0.5 * MSECS_IN_SEC)  // 0.5 sec - half a second
 
+#define SYSEVENT_WAN_STATUS     "wan-status"
+#define WAN_STATUS_STARTED      "started"
+#define WAN_STATUS_STARTING     "starting"
+#define WAN_STATUS_STOPPED      "stopped"
+#define LOCALHOST               "127.0.0.1"
+#define DHCP_SYSEVENT_NAME      "dhcp_evt_handler"
+
 #define DBG_PRINT(fmt, arg...) \
         RDK_LOG(RDK_LOG_INFO, "LOG.RDK.WANMANAGER", fmt, ##arg);
 

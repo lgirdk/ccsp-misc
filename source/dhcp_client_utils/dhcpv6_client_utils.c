@@ -25,12 +25,10 @@
 #include "ti_dhcp6c_client_utils.h"
 #endif
 
-#define LOCALHOST         "127.0.0.1"
-#define DHCP_SYSEVENT_NAME "dhcp_evt_handler"
 #define DHCPV6C_ENABLED    "dhcpv6c_enabled"
 
-token_t dhcp_sysevent_token;
-int dhcp_sysevent_fd;
+static token_t dhcpv6_sysevent_token;
+static int dhcpv6_sysevent_fd;
 
 static int get_dhcpv6_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** send_opt_list)
 {
@@ -64,7 +62,7 @@ static int get_dhcpv6_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** 
         if (strcmp(dslite_enable, "true") == 0)
         {
             memset(dslite_enable, 0, BUFLEN_16);
-            sysevent_get(dhcp_sysevent_fd, dhcp_sysevent_token, "dslite_enabled", dslite_enable, sizeof(dslite_enable));
+            sysevent_get(dhcpv6_sysevent_fd, dhcpv6_sysevent_token, "dslite_enabled", dslite_enable, sizeof(dslite_enable));
             if (strcmp(dslite_enable, "true") == 0)
             {
                 if (add_dhcp_opt_to_list (req_opt_list, DHCPV6_OPT_64, NULL) != RETURN_OK)
@@ -101,6 +99,7 @@ static int get_dhcpv6_opt_list (dhcp_opt_list ** req_opt_list, dhcp_opt_list ** 
 pid_t start_dhcpv6_client (dhcp_params * params)
 {
     char * sysevent_name = DHCP_SYSEVENT_NAME;
+    char buf[256];
 
     if (params == NULL)
     {
@@ -119,9 +118,8 @@ pid_t start_dhcpv6_client (dhcp_params * params)
         return FAILURE;
     }
 
-
-    dhcp_sysevent_fd =  sysevent_open(LOCALHOST, SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, sysevent_name, &dhcp_sysevent_token);
-    if (dhcp_sysevent_fd < 0)
+    dhcpv6_sysevent_fd =  sysevent_open(LOCALHOST, SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, sysevent_name, &dhcpv6_sysevent_token);
+    if (dhcpv6_sysevent_fd < 0)
     {
         DBG_PRINT("%s %d: Fail to open sysevent.\n", __FUNCTION__, __LINE__);
 	/* CID 189993 Improper use of negative value */
@@ -155,7 +153,7 @@ pid_t start_dhcpv6_client (dhcp_params * params)
     if (waitTime <= 0)
     {
         DBG_PRINT("%s %d: interface %s doesnt have link local address\n", __FUNCTION__, __LINE__, params->ifname);
-        sysevent_close(dhcp_sysevent_fd, dhcp_sysevent_token);
+        sysevent_close(dhcpv6_sysevent_fd, dhcpv6_sysevent_token);
         return pid;
     }
 
@@ -176,24 +174,31 @@ pid_t start_dhcpv6_client (dhcp_params * params)
     if ((params->ifType == WAN_LOCAL_IFACE) && (get_dhcpv6_opt_list(&req_opt_list, &send_opt_list)) == FAILURE)
     {
         DBG_PRINT("%s %d: failed to get option list from platform hal\n", __FUNCTION__, __LINE__);
-        sysevent_close(dhcp_sysevent_fd, dhcp_sysevent_token);
+        sysevent_close(dhcpv6_sysevent_fd, dhcpv6_sysevent_token);
         return pid;
     }
 
-    // building args and starting dhcpv4 client
+    // building args and starting dhcpv6 client
+    sysevent_get(dhcpv6_sysevent_fd, dhcpv6_sysevent_token, SYSEVENT_WAN_STATUS, buf, sizeof(buf));
+    if ((strcmp(buf, WAN_STATUS_STARTING) != 0) && (strcmp(buf, WAN_STATUS_STARTED) != 0))
+    {
+        sysevent_set(dhcpv6_sysevent_fd, dhcpv6_sysevent_token, SYSEVENT_WAN_STATUS, WAN_STATUS_STARTING, 0);
+        DBG_PRINT("%s %d - wan-status event set to starting \n", __FUNCTION__, __LINE__);
+    }
+
     DBG_PRINT("%s %d: Starting Dibbler Clients\n", __FUNCTION__, __LINE__);
 #ifdef DHCPV6_CLIENT_DIBBLER
     pid =  start_dibbler (params, req_opt_list, send_opt_list);
 #endif
 
     /* set dhcpv6c_enabled sysevent to restart dibbler-server in Selfheal process */
-    sysevent_set(dhcp_sysevent_fd, dhcp_sysevent_token, DHCPV6C_ENABLED, "1", 0);
+    sysevent_set(dhcpv6_sysevent_fd, dhcpv6_sysevent_token, DHCPV6C_ENABLED, "1", 0);
 
     //exit part
     DBG_PRINT("%s %d: freeing all allocated resources\n", __FUNCTION__, __LINE__);
     free_opt_list_data (req_opt_list);
     free_opt_list_data (send_opt_list);
-    sysevent_close(dhcp_sysevent_fd, dhcp_sysevent_token);
+    sysevent_close(dhcpv6_sysevent_fd, dhcpv6_sysevent_token);
 
     return pid;
 
@@ -216,16 +221,16 @@ int stop_dhcpv6_client (dhcp_params * params)
         return 0;
     }
 
-    dhcp_sysevent_fd =  sysevent_open(LOCALHOST, SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, sysevent_name, &dhcp_sysevent_token);
-    if (dhcp_sysevent_fd < 0)
+    dhcpv6_sysevent_fd = sysevent_open(LOCALHOST, SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, sysevent_name, &dhcpv6_sysevent_token);
+    if (dhcpv6_sysevent_fd < 0)
     {
         DBG_PRINT("%s %d: Fail to open sysevent.\n", __FUNCTION__, __LINE__);
 	/* CID 280237 Improper use of negative value */
 	return 0;
     }
 
-    sysevent_set(dhcp_sysevent_fd, dhcp_sysevent_token, DHCPV6C_ENABLED, "0", 0);
-    sysevent_close(dhcp_sysevent_fd, dhcp_sysevent_token);
+    sysevent_set(dhcpv6_sysevent_fd, dhcpv6_sysevent_token, DHCPV6C_ENABLED, "0", 0);
+    sysevent_close(dhcpv6_sysevent_fd, dhcpv6_sysevent_token);
 
 #if DHCPv6_CLIENT_TI_DHCP6C
     char dibblerV2Enabled[BUFLEN_16] = {0};
