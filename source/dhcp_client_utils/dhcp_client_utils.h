@@ -66,8 +66,8 @@
 #define WAN_STATUS_STARTED      "started"
 #define WAN_STATUS_STARTING     "starting"
 #define WAN_STATUS_STOPPED      "stopped"
-#define LOCALHOST         "127.0.0.1"
-#define DHCP_SYSEVENT_NAME "dhcp_evt_handler"
+#define LOCALHOST               "127.0.0.1"
+#define DHCP_SYSEVENT_NAME      "dhcp_evt_handler"
 
 #define DBG_PRINT(fmt, arg...) \
         RDK_LOG(RDK_LOG_INFO, "LOG.RDK.WANMANAGER", fmt, ##arg);
