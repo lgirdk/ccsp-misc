@@ -135,7 +135,7 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
         return FAILURE;
     }
 
-    char buff[BUFLEN_128] = {0};
+    char buff[BUFLEN_128];
     // write common config
     snprintf(buff, sizeof(buff), "script \"%s\"\n", DIBBLER_SCRIPT_FILE);
     fputs(buff, fout);
@@ -280,7 +280,7 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
     }
 
     // copy the file to new location
-    char file_path[BUFLEN_128] = {0};
+    char file_path[BUFLEN_128];
     int ret = snprintf(file_path, sizeof(file_path), "%s/%s", client_info->config_path, DIBBLER_CLIENT_CONFIG_FILE);
     if (ret <= 0)
     {
@@ -348,7 +348,7 @@ pid_t start_dibbler (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_op
 
     DBG_PRINT("%s %d: Starting dibbler with config %s\n", __FUNCTION__, __LINE__, client_info.config_path);
     
-    char cmd_args[BUFLEN_256] = {0};
+    char cmd_args[BUFLEN_256];
     snprintf(cmd_args, sizeof(cmd_args), "%s -w %s", DIBBLER_CLIENT_RUN_CMD, client_info.config_path);
 
     pid_t ret = start_exe(DIBBLER_CLIENT_PATH, cmd_args);
@@ -385,7 +385,7 @@ int stop_dibbler (dhcp_params * params)
     }
 
     pid_t pid = 0;
-    char cmdarg[BUFLEN_32] = {0};
+    char cmdarg[BUFLEN_32];
 
     snprintf(cmdarg, sizeof(cmdarg), "%s%s", DIBBLER_DFT_PATH, params->ifname);
     pid = get_process_pid(DIBBLER_CLIENT, cmdarg, false);
@@ -404,7 +404,7 @@ int stop_dibbler (dhcp_params * params)
 
     unsigned int waitTime = DIBBLER_CLIENT_TERMINATE_TIMEOUT;
     struct stat sts;
-    char cmd[BUFLEN_128] = {0};
+    char cmd[BUFLEN_128];
     snprintf(cmd, sizeof(cmd), "/proc/%d", pid);
     while (waitTime > 0)
     {
