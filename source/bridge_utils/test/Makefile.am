@@ -53,3 +53,7 @@ bridgeUtils_gtest_bin_SOURCES = bridgeUtilsTest.cpp \
                                 mocks/mock_bridge_util_generic.cpp
 
 bridgeUtils_gtest_bin_LDFLAGS = -lgtest -lgmock -lgcov -lrt -lprivilege -lccsp_common -lbridge_utils -lsecure_wrapper
+
+if CORE_NET_LIB_FEATURE_SUPPORT
+bridgeUtils_gtest_bin_LDFLAGS += -lnet
+endif
