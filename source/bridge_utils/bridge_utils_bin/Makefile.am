@@ -32,6 +32,25 @@ bridgeUtils_CPPFLAGS = -I$(top_srcdir)/include \
 bridgeUtils_SOURCES = bridge_util.c bridge_creation.c main.c bridge_util_generic.c
 
 bridgeUtils_LDFLAGS =  -lrt -lccsp_common -lsyscfg -lsysevent -lprivilege -lbridge_utils -lsecure_wrapper
+
+if FEATURE_VTS_BRIDGE_UTIL
+lib_LTLIBRARIES = libbridgeutils.la
+
+libbridgeutils_la_CPPFLAGS = -I$(top_srcdir)/include \
+                       -I$(top_srcdir)/source/include \
+                       -I$(top_srcdir)/source/bridge_utils/include \
+                       -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/ccsp \
+                       -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/ovsagent \
+                       $(DBUS_CFLAGS)
+
+libbridgeutils_la_SOURCES = bridge_util.c bridge_creation.c bridge_util_generic.c
+
+libbridgeutils_la_LDFLAGS = -lrt -lccsp_common -lsyscfg -lsysevent -lprivilege -lbridge_utils -lsecure_wrapper -shared -fPIC
+endif
+
 if CORE_NET_LIB_FEATURE_SUPPORT
 bridgeUtils_LDFLAGS += -lnet
+if FEATURE_VTS_BRIDGE_UTIL
+libbridgeutils_la_LDFLAGS += -lnet
+endif
 endif

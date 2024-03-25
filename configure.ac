@@ -40,6 +40,18 @@ AC_ARG_ENABLE([gtestapp],
              [echo "Gtestapp is disabled"])
 AM_CONDITIONAL([WITH_GTEST_SUPPORT], [test x$GTEST_SUPPORT_ENABLED = xtrue])
 
+AC_ARG_ENABLE([vts_bridge_util],
+             AS_HELP_STRING([--enable-vts_bridge_util],[enable vts_bridge_util (default is no)]),
+             [
+              case "${enableval}" in
+               yes) VTS_BRIDGE_UTIL_ENABLED=true;;
+               no)  VTS_BRIDGE_UTIL_ENABLED=false;;
+               *) AC_MSG_ERROR([bad value ${enableval} for --enable-vts_bridge_util]);;
+              esac
+             ],
+             [echo "vts_bridge_util is disabled"])
+AM_CONDITIONAL(FEATURE_VTS_BRIDGE_UTIL, test "x$VTS_BRIDGE_UTIL_ENABLED" = xtrue)
+
 # Checks for Core net lib Feature Support
 AC_ARG_ENABLE([core_net_lib_feature_support],
 [  --enable-core_net_lib_feature_support=val Turn on core_net_lib Feature, val=true or false],
