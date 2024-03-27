@@ -41,7 +41,6 @@ FILE* logFp = NULL;
 int main()
 {
 #if !defined(_SR213_PRODUCT_REQ_) && !defined (_WNXL11BWL_PRODUCT_REQ_) && !defined (_SCER11BEL_PRODUCT_REQ_)
-#ifndef XB10_ONLY_SUPPORT
     int ret;
     int rc = -1;
     PFW_BANK_INFO pfw_bank=NULL;
@@ -104,7 +103,6 @@ int main()
     AnscFreeMemory(pfw_bank);
     fclose(logFp);
     t2_uninit();
-#endif
 #endif
     return 0;
 }
