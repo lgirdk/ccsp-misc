@@ -45,7 +45,7 @@
 static token_t dhcpv4_sysevent_token;
 static int dhcpv4_sysevent_fd;
 
-#ifdef EROUTER_DHCP_OPTION_MTA
+#if defined(EROUTER_DHCP_OPTION_MTA) || defined (_LG_OFW_)
 
 static int verifyBufferSpace(const int length, int opt_len, int size)
 {
@@ -558,7 +558,7 @@ static int get_dhcpv4_opt_list (dhcp_params * params, dhcp_opt_list ** req_opt_l
         return FAILURE;
     }
 
-#ifdef EROUTER_DHCP_OPTION_MTA
+#if defined(EROUTER_DHCP_OPTION_MTA) || defined (_LG_OFW_)
     //syscfg for eth_wan_enabled
     char wanoe_enable[BUFLEN_16] = {0};
     if (syscfg_get(NULL, "eth_wan_enabled", wanoe_enable, sizeof(wanoe_enable)) == 0)
