@@ -34,6 +34,7 @@
 #define OUTFILE "/tmp/testUtilityTemp.bin"
 #define B64OUTFILE "/tmp/b64output.bin"
 
+static int vCount = 0;
 typedef struct multipart_subdoc
 {
 	char *name;
@@ -299,7 +300,10 @@ static void packBlobData(cJSON *item, msgpack_packer *pk )
 	{
 		printf("%s\n",blobData);
 		len = getEncodedBlob(blobData, &encodedBlob);
-		printf("%s\n",encodedBlob);
+		if(encodedBlob != NULL)
+		{
+			printf("%s\n",encodedBlob);
+		}
 	}
 	__msgpack_pack_string(pk, item->string, strlen(item->string));
 	__msgpack_pack_string(pk, encodedBlob, len);
@@ -328,8 +332,9 @@ static void packJsonObject( cJSON *item, msgpack_packer *pk, int isBlob )
 				packJsonBool(child, pk, false);
 				break;
 			case cJSON_String:
-				if(child->string != NULL && (strcmp(child->string, "value") == 0) && isBlob == 1)
+				if(child->string != NULL && (strcmp(child->string, "value") == 0) && isBlob == 1 && vCount == 0)
 				{
+					vCount += 1;
 					packBlobData(child, pk);
 				}
 				else
@@ -1239,6 +1244,7 @@ int parseSubDocArgument(char **args, int count, multipart_subdoc_t **docs)
 		{
 			free(fileName2);
 		}
+		vCount = 0;
 		j++;
 	}
 	return 1;
