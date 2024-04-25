@@ -35,24 +35,17 @@ bridgeUtils_gtest_bin_CPPFLAGS = -I$(PKG_CONFIG_SYSROOT_DIR)$(includedir)/gtest 
                                  -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/ovsagent \
                                  -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 \
                                  -I${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include \
+                                 -I${PKG_CONFIG_SYSROOT_DIR}$(includedir) \
                                  $(DBUS_CFLAGS)
 
 bridgeUtils_gtest_bin_SOURCES = bridgeUtilsTest.cpp \
                                 gtest_main.cpp \
                                 ../bridge_utils_bin/bridge_util.c \
                                 ../bridge_utils_bin/bridge_creation.c \
-                                mocks/mock_syscfg.cpp \
-                                mocks/mock_sysevent.cpp \
-                                mocks/mock_psm.cpp \
-                                mocks/mock_file_io.cpp \
-                                mocks/mock_socket.cpp \
-                                mocks/mock_fd.cpp \
-                                mocks/mock_messagebus.cpp \
-                                mocks/mock_util.cpp \
                                 mocks/mock_ovs.cpp \
                                 mocks/mock_bridge_util_generic.cpp
 
-bridgeUtils_gtest_bin_LDFLAGS = -lgtest -lgmock -lgcov -lrt -lprivilege -lccsp_common -lbridge_utils -lsecure_wrapper
+bridgeUtils_gtest_bin_LDFLAGS = -lgtest -lgmock -lgcov -lrt -lprivilege -lccsp_common -lbridge_utils -lsecure_wrapper -lmock_fd -lmock_util -lmock_sysevent -lmock_syscfg -lmock_socket -lmock_psm -lmock_messagebus -lmock_file_io 
 
 if CORE_NET_LIB_FEATURE_SUPPORT
 bridgeUtils_gtest_bin_LDFLAGS += -lnet

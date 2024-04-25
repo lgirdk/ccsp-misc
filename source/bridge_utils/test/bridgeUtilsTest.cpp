@@ -25,15 +25,15 @@
 #include <experimental/filesystem>
 #include "gtest/gtest.h"
 #include <gmock/gmock.h>
-#include "mocks/mock_syscfg.h"
-#include "mocks/mock_file_io.h"
-#include "mocks/mock_psm.h"
-#include "mocks/mock_socket.h"
-#include "mocks/mock_sysevent.h"
-#include "mocks/mock_fd.h"
-#include "mocks/mock_util.h"
+#include <mocks/mock_syscfg.h>
+#include <mocks/mock_file_io.h>
+#include <mocks/mock_psm.h>
+#include <mocks/mock_socket.h>
+#include <mocks/mock_sysevent.h>
+#include <mocks/mock_fd.h>
+#include <mocks/mock_util.h>
 #include "mocks/mock_ovs.h"
-#include "mocks/mock_messagebus.h"
+#include <mocks/mock_messagebus.h>
 #include "mocks/mock_bridge_util_generic.h"
 
 using namespace std;
