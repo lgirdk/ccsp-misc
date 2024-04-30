@@ -21,7 +21,7 @@
 #include<limits.h>
 #include<pthread.h>
 #include "secure_wrapper.h"
-#define DHCP_LEASE_FILE "/nvram/dnsmasq.leases"
+#define DHCP_LEASE_FILE "/var/lib/misc/dnsmasq.leases"
 
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define BUF_LEN (10 * (EVENT_SIZE + NAME_MAX + 1))
