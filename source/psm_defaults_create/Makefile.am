@@ -16,5 +16,5 @@
 ####################################################################################
 
 bin_PROGRAMS = psm_defaults_create
-psm_defaults_create_SOURCES = psm_defaults_create.c
-psm_defaults_create_LDADD = -lrdklist -lsyscfg -lsecure_wrapper
+psm_defaults_create_SOURCES = psm_defaults_create.c rdk_linkedlist.c
+psm_defaults_create_LDADD = -lsyscfg -lsecure_wrapper

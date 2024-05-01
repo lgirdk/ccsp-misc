@@ -26,8 +26,9 @@
 #include <string.h>
 
 #include <syscfg/syscfg.h>
-#include <rdk_linkedlist.h>
 #include <secure_wrapper.h>
+
+#include "rdk_linkedlist.h"
 
 /****************************************************************************/
 /*                          DEFINES:                                        */
