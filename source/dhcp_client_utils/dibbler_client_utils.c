@@ -415,7 +415,7 @@ int stop_dibbler (dhcp_params * params)
         return FAILURE;
     }
 
-    snprintf(custom_cfg_path, sizeof(custom_cfg_path), DIBBLER_LG_PATH, params->ifname);
+    snprintf(custom_cfg_path, sizeof(custom_cfg_path), DIBBLER_LG_PATH, params->ifname ? params->ifname : "");
 
     if (access(custom_cfg_path, F_OK))
     {
