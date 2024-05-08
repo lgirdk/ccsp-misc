@@ -100,6 +100,7 @@ pid_t start_dhcpv6_client (dhcp_params * params)
 {
     char * sysevent_name = DHCP_SYSEVENT_NAME;
     char buf[256];
+    char custom_cfg_path[128];
 
     if (params == NULL)
     {
@@ -107,11 +108,18 @@ pid_t start_dhcpv6_client (dhcp_params * params)
         return 0;
     }
 
+    snprintf(custom_cfg_path, sizeof(custom_cfg_path), DIBBLER_LG_PATH, params->ifname ? params->ifname : "");
+    if (access(custom_cfg_path, F_OK))
+    {
+        /* custom config is not enabled in this platform. override ifname processing */
+        custom_cfg_path[0] = '\0';
+    }
+
     //Check if default dibbler tmp path available or not. If not then create it
     create_dir_path(DIBBLER_TMP_DIR_PATH);
 
     pid_t pid = 0;
-    pid = get_process_pid(DIBBLER_CLIENT, params->ifname, false);
+    pid = get_process_pid(DIBBLER_CLIENT, custom_cfg_path[0] != '\0' ? custom_cfg_path : NULL, false);
     if (pid > 0)
     {
         DBG_PRINT("%s %d: another instance of %s running on %s \n", __FUNCTION__, __LINE__, DIBBLER_CLIENT, params->ifname);
