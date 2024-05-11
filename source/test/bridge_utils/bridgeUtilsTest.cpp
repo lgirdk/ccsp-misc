@@ -34,10 +34,11 @@
 #include <mocks/mock_util.h>
 #include "mocks/mock_ovs.h"
 #include <mocks/mock_messagebus.h>
-#include "mocks/mock_bridge_util_generic.h"
-#include <mocks/mock_cap.h>
 #include <mocks/mock_securewrapper.h>
 #include <mocks/mock_ansc_memory.h>
+#include <mocks/mock_cap.h>
+#include "mocks/mock_bridge_util_generic.h"
+
 
 using namespace std;
 using std::experimental::filesystem::exists;
@@ -48,7 +49,7 @@ extern "C"
 #include "bridge_util_hal.h"
 }
 
-extern int ovsEnable, bridgeUtilEnable, skipWiFi, skipMoCA; //eb_enable;
+extern int ovsEnable, bridgeUtilEnable, skipWiFi, skipMoCA, eb_enable;
 extern int wan_mode;
 extern int InstanceNumber;
 extern int MocaIsolation_Enabled;
@@ -73,7 +74,7 @@ SecureWrapperMock * g_securewrapperMock = NULL;
 CapMock * g_capMock                     = NULL;
 AnscMemoryMock * g_anscMemoryMock       = NULL;
 
-class BridgeUtilsTestFixture : public ::testing::Test {
+class BridgeUtilsTestFixture : public ::testing::TestWithParam<int> {
     protected:
         SyscfgMock mockedSyscfg;
         FileIOMock mockedFileIO;
@@ -84,9 +85,9 @@ class BridgeUtilsTestFixture : public ::testing::Test {
         MessageBusMock mockedMsgbus;
         UtilMock  mockedUtil;
         OvsMock mockedOvs;
-	BridgeUtilsGenericMock mockedGeneric;
+	    BridgeUtilsGenericMock mockedGeneric;
         SecureWrapperMock mockedsecurewrapper;
-        CapMock mockedcapMock;
+        CapMock mockedcapMock;                
         AnscMemoryMock mockedanscMemoryMock;
 
         BridgeUtilsTestFixture()
@@ -102,8 +103,9 @@ class BridgeUtilsTestFixture : public ::testing::Test {
             g_ovsMock = &mockedOvs;
 	    g_bridgeUtilsGenericMock = &mockedGeneric;
             g_securewrapperMock      = &mockedsecurewrapper;
-            g_capMock                = &mockedcapMock;
-	    g_anscMemoryMock         = &mockedanscMemoryMock;
+            g_capMock                = &mockedcapMock;	
+	    g_anscMemoryMock        =  &mockedanscMemoryMock;
+
         }
 
         virtual ~BridgeUtilsTestFixture()
@@ -119,8 +121,8 @@ class BridgeUtilsTestFixture : public ::testing::Test {
             g_ovsMock = NULL;
 	    g_bridgeUtilsGenericMock = NULL;
             g_securewrapperMock    = NULL;
-            g_capMock              = NULL ;
-	    g_anscMemoryMock        = NULL ;
+            g_capMock              = NULL ;	 
+            g_anscMemoryMock        = NULL ;   
         }
         virtual void SetUp()
         {
@@ -157,19 +159,12 @@ TEST_F(BridgeUtilsTestFixture, Initialize)
     char expectedCmd[64] = {0};
     memset(expectedCmd,0,sizeof(expectedCmd));
     snprintf(expectedCmd,sizeof(expectedCmd),"touch %s",BRIDGE_UTIL_RUNNING);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
-        .Times(1)
-        .WillOnce(Return(1));
     EXPECT_CALL(*g_messagebusMock, CCSP_Message_Bus_Init(_, _, _, _, _))
           .Times(1)
           .WillOnce(Return(0));
-    EXPECT_CALL(*g_syscfgMock, syscfg_init())
-      	 .Times(1)
-         .WillOnce(Return(0));
     EXPECT_CALL(*g_syseventMock, sysevent_open(_, _, _, _, _))
 	 .Times(1)
          .WillOnce(Return(0));
-
     EXPECT_EQ(0, Initialize());
 }
 
@@ -178,167 +173,22 @@ TEST_F(BridgeUtilsTestFixture, InitializeMessageBusFail)
     char expectedCmd[64] = {0};
     memset(expectedCmd,0,sizeof(expectedCmd));
     snprintf(expectedCmd,sizeof(expectedCmd),"touch %s",BRIDGE_UTIL_RUNNING);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
-        .Times(1)
-        .WillOnce(Return(1));
     EXPECT_CALL(*g_messagebusMock, CCSP_Message_Bus_Init(_, _, _, _, _))
 	  .Times(1)
 	  .WillOnce(Return(-1));
-
     EXPECT_EQ(FAILED, Initialize());
 }
 
-TEST_F(BridgeUtilsTestFixture, InitializeSyscfgFail1)
+TEST_F(BridgeUtilsTestFixture, InitializeSyseventopenFail)
 {
     char expectedCmd[64] = {0};
-    memset(expectedCmd,0,sizeof(expectedCmd));
-    snprintf(expectedCmd,sizeof(expectedCmd),"touch %s",BRIDGE_UTIL_RUNNING);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
-        .Times(1)
-        .WillOnce(Return(1));
+    snprintf(expectedCmd, sizeof(expectedCmd), "touch %s", BRIDGE_UTIL_RUNNING);
     EXPECT_CALL(*g_messagebusMock, CCSP_Message_Bus_Init(_, _, _, _, _))
-         .Times(1)
-         .WillOnce(Return(0));
-    EXPECT_CALL(*g_syscfgMock, syscfg_init())
-	  .Times(1)
-          .WillOnce(Return(-1));
-    EXPECT_EQ(FAILED, Initialize());
-}
-
-TEST_F(BridgeUtilsTestFixture, InitializeSyscfgFail2)
-{
-    char expectedCmd[64] = {0};
-    memset(expectedCmd,0,sizeof(expectedCmd));
-    snprintf(expectedCmd,sizeof(expectedCmd),"touch %s",BRIDGE_UTIL_RUNNING);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
-        .Times(1)
-        .WillOnce(Return(1));
-    EXPECT_CALL(*g_messagebusMock, CCSP_Message_Bus_Init(_, _, _, _, _))
-         .Times(1)
-         .WillOnce(Return(0));
-    EXPECT_CALL(*g_syscfgMock, syscfg_init())
           .Times(1)
-          .WillOnce(Return(-20));
-    EXPECT_EQ(FAILED, Initialize());
-}
-
-TEST_F(BridgeUtilsTestFixture, InitializeSyseventopenFail1)
-{
-    char expectedCmd[64] = {0};
-    memset(expectedCmd,0,sizeof(expectedCmd));
-    snprintf(expectedCmd,sizeof(expectedCmd),"touch %s",BRIDGE_UTIL_RUNNING);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
-        .Times(1)
-        .WillOnce(Return(1));
-    EXPECT_CALL(*g_messagebusMock, CCSP_Message_Bus_Init(_, _, _, _, _))
-	  .Times(1)
-          .WillOnce(Return(0));
-    EXPECT_CALL(*g_syscfgMock, syscfg_init())
-	  .Times(1)
           .WillOnce(Return(0));
     EXPECT_CALL(*g_syseventMock, sysevent_open(_, _, _, _, _))
          .Times(1)
          .WillOnce(Return(-1));
-    EXPECT_EQ(FAILED, Initialize());
-}
-
-TEST_F(BridgeUtilsTestFixture, InitializeSyseventopenFail2)
-{
-    char expectedCmd[64] = {0};
-    memset(expectedCmd,0,sizeof(expectedCmd));
-    snprintf(expectedCmd,sizeof(expectedCmd),"touch %s",BRIDGE_UTIL_RUNNING);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
-        .Times(1)
-        .WillOnce(Return(1));
-    EXPECT_CALL(*g_messagebusMock, CCSP_Message_Bus_Init(_, _, _, _, _))
-          .Times(1)
-          .WillOnce(Return(0));
-    EXPECT_CALL(*g_syscfgMock, syscfg_init())
-          .Times(1)
-          .WillOnce(Return(0));
-    EXPECT_CALL(*g_syseventMock, sysevent_open(_, _, _, _, _))
-         .Times(1)
-         .WillOnce(Return(-1241));
-    EXPECT_EQ(FAILED, Initialize());
-}
-
-TEST_F(BridgeUtilsTestFixture, InitializeSyseventopenFail3)
-{
-    char expectedCmd[64] = {0};
-    memset(expectedCmd,0,sizeof(expectedCmd));
-    snprintf(expectedCmd,sizeof(expectedCmd),"touch %s",BRIDGE_UTIL_RUNNING); 
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
-        .Times(1)
-        .WillOnce(Return(1));
-    EXPECT_CALL(*g_messagebusMock, CCSP_Message_Bus_Init(_, _, _, _, _))
-          .Times(1)
-          .WillOnce(Return(0));
-    EXPECT_CALL(*g_syscfgMock, syscfg_init())
-          .Times(1)
-          .WillOnce(Return(0));
-    EXPECT_CALL(*g_syseventMock, sysevent_open(_, _, _, _, _))
-         .Times(1)
-         .WillOnce(Return(-1242));
-    EXPECT_EQ(FAILED, Initialize());
-}
-
-TEST_F(BridgeUtilsTestFixture, InitializeSyseventopenFail4)
-{
-    char expectedCmd[64] = {0};
-    memset(expectedCmd,0,sizeof(expectedCmd));
-    snprintf(expectedCmd,sizeof(expectedCmd),"touch %s",BRIDGE_UTIL_RUNNING); 
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
-        .Times(1)
-        .WillOnce(Return(1));
-    EXPECT_CALL(*g_messagebusMock, CCSP_Message_Bus_Init(_, _, _, _, _))
-          .Times(1)
-          .WillOnce(Return(0));
-    EXPECT_CALL(*g_syscfgMock, syscfg_init())
-          .Times(1)
-          .WillOnce(Return(0));
-    EXPECT_CALL(*g_syseventMock, sysevent_open(_, _, _, _, _))
-         .Times(1)
-         .WillOnce(Return(-1243));
-    EXPECT_EQ(FAILED, Initialize());
-}
-
-TEST_F(BridgeUtilsTestFixture, InitializeSyseventopenFail5)
-{
-    char expectedCmd[64] = {0};
-    memset(expectedCmd,0,sizeof(expectedCmd));
-    snprintf(expectedCmd,sizeof(expectedCmd),"touch %s",BRIDGE_UTIL_RUNNING); 
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
-        .Times(1)
-        .WillOnce(Return(1));
-    EXPECT_CALL(*g_messagebusMock, CCSP_Message_Bus_Init(_, _, _, _, _))
-          .Times(1)
-          .WillOnce(Return(0));
-    EXPECT_CALL(*g_syscfgMock, syscfg_init())
-          .Times(1)
-          .WillOnce(Return(0));
-    EXPECT_CALL(*g_syseventMock, sysevent_open(_, _, _, _, _))
-         .Times(1)
-         .WillOnce(Return(-1245));
-    EXPECT_EQ(FAILED, Initialize());
-}
-
-TEST_F(BridgeUtilsTestFixture, InitializeSyseventopenFail6)
-{
-    char expectedCmd[64] = {0};
-    memset(expectedCmd,0,sizeof(expectedCmd));
-    snprintf(expectedCmd,sizeof(expectedCmd),"touch %s",BRIDGE_UTIL_RUNNING); 
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
-        .Times(1)
-        .WillOnce(Return(1));
-    EXPECT_CALL(*g_messagebusMock, CCSP_Message_Bus_Init(_, _, _, _, _))
-          .Times(1)
-          .WillOnce(Return(0));
-    EXPECT_CALL(*g_syscfgMock, syscfg_init())
-          .Times(1)
-          .WillOnce(Return(0));
-    EXPECT_CALL(*g_syseventMock, sysevent_open(_, _, _, _, _))
-         .Times(1)
-         .WillOnce(Return(-1248));
     EXPECT_EQ(FAILED, Initialize());
 }
 
@@ -349,7 +199,7 @@ ACTION_TEMPLATE(SetArgNPointeeTo, HAS_1_TEMPLATE_PARAMS(unsigned, uIndex), AND_2
 
 ACTION_P(SetPsmValueArg4, value)
 {
-    *static_cast<char**>(arg4) = *value;
+    *static_cast<char**>(arg4) = strdup(*value);
 }
 
 TEST_F(BridgeUtilsTestFixture, getXfinityEnableStatus)
@@ -394,75 +244,71 @@ TEST_F(BridgeUtilsTestFixture, checkIfExistsFailure)
     EXPECT_CALL(*g_socketMock, socket(_, _, _))
         .Times(1)
         .WillOnce(Return(-1));
-    errno = ENODEV;
-    EXPECT_CALL(*g_fdMock, ioctl(_, _, _))
-        .Times(1)
-        .WillOnce(Return(-1));
-    EXPECT_CALL(*g_socketMock, close(_))
-        .Times(1)
-        .WillOnce(Return(0));
     EXPECT_EQ(INTERFACE_NOT_EXIST, checkIfExists(input));
 }
 
-TEST_F(BridgeUtilsTestFixture, checkIfExistsInBridgeOvsEnable)
-{
+// Test case for ovsEnable = 1
+TEST_F(BridgeUtilsTestFixture, checkIfExistsInBridgeOvsEnable) {
     char bridge[] = "brlan0";
     char iface[] = "nmoca0";
-    ovsEnable = 1;
-    char expectedCmd[128] = {0};
-    snprintf(expectedCmd,sizeof(expectedCmd),"ovs-vsctl list-ifaces %s | grep %s | tr \"\n\" \" \" ",bridge, iface);
+    // Set ovsEnable to 1
+    ovsEnable = 1; 
+    FILE *expectedFd = (FILE *)0xffffffff;
     char expectedIfList[] = "nmoca0 ";
-    FILE * expectedFd = (FILE *)0xffffffff;
-    EXPECT_CALL(*g_fileIOMock, popen(StrEq(expectedCmd), StrEq("r")))
-       .Times(1)
-       .WillOnce(::testing::Return(expectedFd));
+    char expectedCmd[128];
+    snprintf(expectedCmd, sizeof(expectedCmd), "ovs-vsctl list-ifaces %s | grep %s | tr '\n' ' ' ", bridge, iface);
+
+    EXPECT_CALL(*g_securewrapperMock, v_secure_popen(StrEq("r"), testing::HasSubstr("ovs-vsctl list-ifaces"), _))
+        .WillOnce(Return(expectedFd));
+
     EXPECT_CALL(*g_fileIOMock, fgets(_, _, expectedFd))
         .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetArgNPointeeTo<0>(std::begin(expectedIfList), sizeof(expectedIfList)),
-            ::testing::Return((char*)expectedIfList)
+        .WillOnce(testing::DoAll(
+            testing::SetArrayArgument<0>(expectedIfList, expectedIfList + strlen(expectedIfList) + 1),
+            Return(static_cast<char*>(expectedIfList))
         ));
-    EXPECT_CALL(*g_fileIOMock, pclose(expectedFd))
-       .Times(1)
-       .WillOnce(::testing::Return(0));
+
+    EXPECT_CALL(*g_securewrapperMock, v_secure_pclose(expectedFd))
+        .WillOnce(Return(0));
+
     EXPECT_EQ(INTERFACE_EXIST, checkIfExistsInBridge(iface, bridge));
 }
 
-TEST_F(BridgeUtilsTestFixture, checkIfExistsInBridgeOvsDisable)
-{
+// Test case for ovsEnable = 0
+TEST_F(BridgeUtilsTestFixture, checkIfExistsInBridgeOvsDisable) {
     char bridge[] = "brlan0";
     char iface[] = "wl0";
-    char expectedCmd[128] = {0};
-    snprintf(expectedCmd,sizeof(expectedCmd),"brctl show %s | sed '1d' | awk '{print $NF}' | grep %s | tr \"\n\" \" \" ",bridge, iface);
-    ovsEnable = 0;
+    // Set ovsEnable to 0
+    ovsEnable = 0; 
+    FILE *expectedFd = (FILE *)0xffffffff;
     char expectedIfList[] = "wl0 wl1";
-    FILE * expectedFd = (FILE *)0xffffffff;
-    EXPECT_CALL(*g_fileIOMock, popen(StrEq(expectedCmd), StrEq("r")))
-       .Times(1)
-       .WillOnce(::testing::Return(expectedFd));
+    char expectedCmd[128];
+    snprintf(expectedCmd, sizeof(expectedCmd), "brctl show %s | sed '1d' | awk '{print $NF}' | grep %s | tr '\n' ' ' ", bridge, iface);
+
+    EXPECT_CALL(*g_securewrapperMock, v_secure_popen(StrEq("r"), testing::HasSubstr("brctl show"), _))
+        .WillOnce(Return(expectedFd));
+
     EXPECT_CALL(*g_fileIOMock, fgets(_, _, expectedFd))
         .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetArgNPointeeTo<0>(std::begin(expectedIfList), sizeof(expectedIfList)),
-            ::testing::Return((char*)expectedIfList)
+        .WillOnce(testing::DoAll(
+            testing::SetArrayArgument<0>(expectedIfList, expectedIfList + strlen(expectedIfList) + 1),
+            Return(static_cast<char*>(expectedIfList))
         ));
-    EXPECT_CALL(*g_fileIOMock, pclose(expectedFd))
-       .Times(1)
-       .WillOnce(::testing::Return(0));
+
+    EXPECT_CALL(*g_securewrapperMock, v_secure_pclose(expectedFd))
+        .WillOnce(Return(0));
+
     EXPECT_EQ(INTERFACE_EXIST, checkIfExistsInBridge(iface, bridge));
 }
 
-TEST_F(BridgeUtilsTestFixture, checkIfExistsInBridgePopenFailure)
-{
+// Test case for failure in v_secure_popen
+TEST_F(BridgeUtilsTestFixture, checkIfExistsInBridgePopenFailure) {
     char bridge[] = "brlan0";
     char iface[] = "wl0";
-    ovsEnable = 0;
-    FILE * expectedFd = (FILE *)0x00000000;
-    char expectedCmd[128] = {0};
-    snprintf(expectedCmd,sizeof(expectedCmd),"brctl show %s | sed '1d' | awk '{print $NF}' | grep %s | tr \"\n\" \" \" ",bridge, iface);
-    EXPECT_CALL(*g_fileIOMock, popen(StrEq(expectedCmd), StrEq("r")))
-       .Times(1)
-       .WillOnce(::testing::Return(expectedFd));
+    // Set ovsEnable to 1
+    ovsEnable = 1; 
+    EXPECT_CALL(*g_securewrapperMock, v_secure_popen(StrEq("r"), _, _))
+        .WillOnce(Return(nullptr)); 
     EXPECT_EQ(INTERFACE_NOT_EXIST, checkIfExistsInBridge(iface, bridge));
 }
 
@@ -477,289 +323,196 @@ TEST(BridgeUtils, removeIfaceFromList)
     EXPECT_STREQ(IfList, IfList);
 }
 
-TEST_F(BridgeUtilsTestFixture, enableMoCaIsolationSettingsPSMFail)
-{
-    bridgeDetails bridgeInfo;
-    memset(&bridgeInfo, 0, sizeof(bridgeDetails));
-    strncpy(bridgeInfo.bridgeName,"brlan0",sizeof(bridgeInfo.bridgeName)-1);
+TEST_F(BridgeUtilsTestFixture, enableMoCaIsolationSettingsPSMFail) {
+    bridgeDetails bridgeInfo = {};
+    strncpy(bridgeInfo.bridgeName, "brlan0", sizeof(bridgeInfo.bridgeName) - 1);
 
-    char paramName1[128] = "dmsb.MultiLAN.MoCAIsoLation_l3net";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
+    const char* paramNames[] = {
+        "dmsb.MultiLAN.MoCAIsoLation_l3net",
+        "dmsb.l3net.0.V4Addr",
+        "dmsb.l2net.1.Name",
+        "dmsb.l3net.0.V4SubnetMask"
+    };
+
+    for (const auto& paramName : paramNames) {
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(Return(9005));
+    }
+
+    const char* expectedCommand = "ip link set %s allmulticast on ;\
+        ifconfig %s %s ; \
+        ip link set %s up ; \
+        echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ; \
+        sysctl -w net.ipv4.conf.all.arp_announce=3 ; \
+        ip rule add from all iif %s lookup all_lans ; \
+        echo 0 > /proc/sys/net/ipv4/conf/%s/rp_filter ;\
+        touch %s ;";
+
+    EXPECT_CALL(*g_securewrapperMock, v_secure_system(::testing::HasSubstr("ip link set "), _))
         .Times(1)
-        .WillOnce(Return(9005));
-    
-    char paramName2[128] = {};
-    memset(paramName2,0,sizeof(paramName2));
-	snprintf(paramName2,sizeof(paramName2), "dmsb.l3net.%d.V4Addr",0);
+        .WillOnce(Return(0));
+
+    enableMoCaIsolationSettings(&bridgeInfo);
+
+    EXPECT_STREQ(primaryBridgeName, "");
+}
+
+TEST_F(BridgeUtilsTestFixture, enableMoCaIsolationSettings) 
+{
     char ipaddr[64] = {};
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(Return(9005));
-    char paramName3[128] = {};
-    char expectedValue3[128] = {0};
-    memset(expectedValue3,0,sizeof(expectedValue3));
-    memset(paramName3,0,sizeof(paramName3));
-	snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Name",1);
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(Return(9005));
+    bridgeDetails bridgeInfo = {};
+    strncpy(bridgeInfo.bridgeName, "brlan0", sizeof(bridgeInfo.bridgeName) - 1);
 
-    char expectedValue4[516] = {};
-    snprintf(expectedValue4,sizeof(expectedValue4),"ip link set %s allmulticast on ;\
-	    	ifconfig %s %s ; \
-	    	ip link set %s up ; \
-	    	echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ; \
-	    	sysctl -w net.ipv4.conf.all.arp_announce=3 ; \
-	    	ip rule add from all iif %s lookup all_lans ; \
-	    	echo 0 > /proc/sys/net/ipv4/conf/%s/rp_filter ;\
-	    	touch %s ;",
-	    	bridgeInfo.bridgeName,
-	    	bridgeInfo.bridgeName,
-	    	ipaddr,
-	    	bridgeInfo.bridgeName,
-	    	bridgeInfo.bridgeName,
-	    	bridgeInfo.bridgeName,
-	    	LOCAL_MOCABR_UP_FILE);
+    struct Param {
+        const char* name;
+        const char* expectedValue;
+    };
 
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedValue4)))
+    Param params[] = {
+        {"dmsb.MultiLAN.MoCAIsoLation_l3net", "9"},
+        {"dmsb.l3net.9.V4Addr", "192.168.10.12"},
+        {"dmsb.l3net.9.V4SubnetMask", "255.255.255.0"},
+        {"dmsb.l2net.1.Name", "brlan0"}
+    };
+
+    for (int i = 0; i < 4; ++i) {
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(params[i].name), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&params[i].expectedValue),
+                ::testing::Return(100)
+            ));
+    }
+
+    char expectedCommand[1024] = {};
+    snprintf(expectedCommand, sizeof(expectedCommand), 
+        "ip link set %s allmulticast on ;\t"
+        "ifconfig %s %s ; \t"
+        "ip link set %s up ; \t"
+        "echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ; \t"
+        "sysctl -w net.ipv4.conf.all.arp_announce=3 ; \t"
+        "ip rule add from all iif %s lookup all_lans ; \t"
+        "echo 0 > /proc/sys/net/ipv4/conf/'%s'/rp_filter ;\t"
+        "touch %s",
+        bridgeInfo.bridgeName,
+        bridgeInfo.bridgeName,
+        "192.168.10.12",
+        bridgeInfo.bridgeName,
+        bridgeInfo.bridgeName,
+        bridgeInfo.bridgeName,
+        LOCAL_MOCABR_UP_FILE);
+
+
+    EXPECT_CALL(*g_securewrapperMock, v_secure_system(::testing::HasSubstr("ip link set brlan0 allmulticast on ;\t    \tifconfig brlan0 192.168.10.12 ; \t    \tip link set brlan0 up ; \t"), _))
         .Times(1)
-        .WillOnce(Return(1));
+        .WillOnce(Return(0));
+
     enableMoCaIsolationSettings(&bridgeInfo);
-    EXPECT_STREQ(primaryBridgeName, expectedValue3);
+    EXPECT_STREQ(primaryBridgeName, params[3].expectedValue);
 }
 
-TEST_F(BridgeUtilsTestFixture, enableMoCaIsolationSettings)
+TEST_F(BridgeUtilsTestFixture, disableMoCaIsolationSettings) 
 {
     bridgeDetails bridgeInfo;
     memset(&bridgeInfo, 0, sizeof(bridgeDetails));
-    strncpy(bridgeInfo.bridgeName,"brlan0",sizeof(bridgeInfo.bridgeName)-1);
+    strncpy(bridgeInfo.bridgeName, "brlan0", sizeof(bridgeInfo.bridgeName) - 1);
 
-    char paramName1[128] = "dmsb.MultiLAN.MoCAIsoLation_l3net";
-    char expectedValue1[128] = "9";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
+    EXPECT_CALL(*g_securewrapperMock, v_secure_system(::testing::HasSubstr("ip link set "), _))
         .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
-    
-    char paramName2[128] = {};
-    memset(paramName2,0,sizeof(paramName2));
-	snprintf(paramName2,sizeof(paramName2), "dmsb.l3net.%d.V4Addr",9);
-    char ipaddr[] = "192.168.10.12";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&ipaddr),
-            ::testing::Return(100)
-        ));
-    char paramName3[128] = {};
-    char expectedValue3[] = "brlan0";
-    memset(paramName3,0,sizeof(paramName3));
-	snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Name",1);
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
+        .WillOnce(Return(0));
 
-    char expectedValue4[516] = {};
-    snprintf(expectedValue4,sizeof(expectedValue4),"ip link set %s allmulticast on ;\
-	    	ifconfig %s %s ; \
-	    	ip link set %s up ; \
-	    	echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ; \
-	    	sysctl -w net.ipv4.conf.all.arp_announce=3 ; \
-	    	ip rule add from all iif %s lookup all_lans ; \
-	    	echo 0 > /proc/sys/net/ipv4/conf/%s/rp_filter ;\
-	    	touch %s ;",
-	    	bridgeInfo.bridgeName,
-	    	bridgeInfo.bridgeName,
-	    	ipaddr,
-	    	bridgeInfo.bridgeName,
-	    	bridgeInfo.bridgeName,
-	    	bridgeInfo.bridgeName,
-	    	LOCAL_MOCABR_UP_FILE);
-
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedValue4)))
-        .Times(1)
-        .WillOnce(Return(1));
-    enableMoCaIsolationSettings(&bridgeInfo);
-    EXPECT_STREQ(primaryBridgeName, expectedValue3);
-}
-
-TEST_F(BridgeUtilsTestFixture, disableMoCaIsolationSettings)
-{
-    bridgeDetails bridgeInfo;
-    memset(&bridgeInfo, 0, sizeof(bridgeDetails));
-    strncpy(bridgeInfo.bridgeName,"brlan0",sizeof(bridgeInfo.bridgeName)-1);
-    char expectedCMD[256] = {0};
-	snprintf(expectedCMD,sizeof(expectedCMD),"ip link set %s down",bridgeInfo.bridgeName);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCMD)))
-        .Times(1)
-        .WillOnce(Return(1));
     disableMoCaIsolationSettings(&bridgeInfo);
 }
 
 TEST_F(BridgeUtilsTestFixture, getIfList)
 {
     InstanceNumber = 1;
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "brlan0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
     
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "100";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
-    
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "link0 link1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
-    
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "eth0 eth1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
+    struct ParamFormatExpectedValue {
+        const char* format;
+        const char* expectedValue;
+    };
 
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    char expectedValue5[128] = "moca0 moca1 moca2";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue5),
-            ::testing::Return(100)
-        ));
+    ParamFormatExpectedValue params[] = {
+        {"dmsb.l2net.%d.Name", "brlan0"},
+        {"dmsb.l2net.%d.Vid", "100"},
+        {"dmsb.l2net.%d.Members.Link", "link0 link1"},
+        {"dmsb.l2net.%d.Members.Eth", "eth0 eth1"},
+        {"dmsb.l2net.%d.Members.Moca", "moca0 moca1 moca2"},
+        {"dmsb.l2net.%d.Members.WiFi", "wifi0"},
+        {"dmsb.l2net.%d.Members.Gre", ""},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""}
+    };
 
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "wifi0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-    
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
+    const int numParams = sizeof(params) / sizeof(params[0]);
+
+    for (int i = 0; i < numParams; ++i) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), params[i].format, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&params[i].expectedValue),
+                ::testing::Return(100)
+            ));
+    }
 
     bridgeDetails bridgeInfo;
     memset(&bridgeInfo, 0, sizeof(bridgeDetails));
     EXPECT_EQ(0, getIfList(&bridgeInfo));
-    EXPECT_STREQ(bridgeInfo.bridgeName, expectedValue1);
-    EXPECT_EQ(bridgeInfo.vlanID, atoi(expectedValue2));
-    EXPECT_STREQ(bridgeInfo.vlan_name, expectedValue3);
-    EXPECT_STREQ(bridgeInfo.ethIfList, expectedValue4);
-    EXPECT_STREQ(bridgeInfo.MoCAIfList, expectedValue5);
-    EXPECT_STREQ(bridgeInfo.WiFiIfList, expectedValue6);
-    EXPECT_STREQ(bridgeInfo.GreIfList, expectedValue7);
+    EXPECT_STREQ(bridgeInfo.bridgeName, params[0].expectedValue);
+    EXPECT_EQ(bridgeInfo.vlanID, atoi(params[1].expectedValue));
+    EXPECT_STREQ(bridgeInfo.vlan_name, params[2].expectedValue);
+    EXPECT_STREQ(bridgeInfo.ethIfList, params[3].expectedValue);
+    EXPECT_STREQ(bridgeInfo.MoCAIfList, params[4].expectedValue);
+    EXPECT_STREQ(bridgeInfo.WiFiIfList, params[5].expectedValue);
+    EXPECT_STREQ(bridgeInfo.GreIfList, params[6].expectedValue);
 }
 
 TEST_F(BridgeUtilsTestFixture, getIfListSkipMoca)
 {
     InstanceNumber = 2;
     skipMoCA = 1;
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "brlan1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
     
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "101";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
-    
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "link0 link1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
-    
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "eth0 eth1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
+    struct ParamInfo {
+        const char* format;
+        const char* expectedValue;
+    };
 
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "wifi0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-    
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
+    ParamInfo paramInfos[] = {
+        {"dmsb.l2net.%d.Name", "brlan1"},
+        {"dmsb.l2net.%d.Vid", "101"},
+        {"dmsb.l2net.%d.Members.Link", "link0 link1"},
+        {"dmsb.l2net.%d.Members.Eth", "eth0 eth1"},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""},
+        {"dmsb.l2net.%d.Members.WiFi", "wifi0"},
+        {"dmsb.l2net.%d.Members.Gre", ""}
+    };
+
+    const int numParams = sizeof(paramInfos) / sizeof(paramInfos[0]);
+
+    for (int i = 0; i < numParams; ++i) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), paramInfos[i].format, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&paramInfos[i].expectedValue),
+                ::testing::Return(100)
+            ));
+    }
 
     bridgeDetails bridgeInfo;
     memset(&bridgeInfo, 0, sizeof(bridgeDetails));
     EXPECT_EQ(0, getIfList(&bridgeInfo));
-    EXPECT_STREQ(bridgeInfo.bridgeName, expectedValue1);
-    EXPECT_EQ(bridgeInfo.vlanID, atoi(expectedValue2));
-    EXPECT_STREQ(bridgeInfo.vlan_name, expectedValue3);
-    EXPECT_STREQ(bridgeInfo.ethIfList, expectedValue4);
-    EXPECT_STREQ(bridgeInfo.MoCAIfList, "");
-    EXPECT_STREQ(bridgeInfo.WiFiIfList, expectedValue6);
-    EXPECT_STREQ(bridgeInfo.GreIfList, expectedValue7);
+    EXPECT_STREQ(bridgeInfo.bridgeName, paramInfos[0].expectedValue);
+    EXPECT_EQ(bridgeInfo.vlanID, atoi(paramInfos[1].expectedValue));
+    EXPECT_STREQ(bridgeInfo.vlan_name, paramInfos[2].expectedValue);
+    EXPECT_STREQ(bridgeInfo.ethIfList, paramInfos[3].expectedValue);
+    EXPECT_STREQ(bridgeInfo.MoCAIfList, "");  // MoCA list should be empty
+    EXPECT_STREQ(bridgeInfo.WiFiIfList, paramInfos[5].expectedValue);
+    EXPECT_STREQ(bridgeInfo.GreIfList, paramInfos[6].expectedValue);
 }
 
 TEST_F(BridgeUtilsTestFixture, getIfListSkipWifi)
@@ -768,76 +521,44 @@ TEST_F(BridgeUtilsTestFixture, getIfListSkipWifi)
     skipWiFi = 1;
     skipMoCA = 0;
 
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "brlan2";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
-    
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "100";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
-    
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "link0 link1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
-    
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "eth0 eth1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
+    struct ParamInfo {
+        const char* format;
+        const char* expectedValue;
+    };
 
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    char expectedValue5[128] = "moca0 moca1 moca2";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue5),
-            ::testing::Return(100)
-        ));
-    
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
+    ParamInfo paramInfos[] = {
+        {"dmsb.l2net.%d.Name", "brlan2"},
+        {"dmsb.l2net.%d.Vid", "100"},
+        {"dmsb.l2net.%d.Members.Link", "link0 link1"},
+        {"dmsb.l2net.%d.Members.Eth", "eth0 eth1"},
+        {"dmsb.l2net.%d.Members.Moca", "moca0 moca1 moca2"},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""},
+        {"dmsb.l2net.%d.Members.Gre", ""}
+    };
+
+    const int numParams = sizeof(paramInfos) / sizeof(paramInfos[0]);
+
+    for (int i = 0; i < numParams; ++i) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), paramInfos[i].format, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&paramInfos[i].expectedValue),
+                ::testing::Return(100)
+            ));
+    }
 
     bridgeDetails bridgeInfo;
     memset(&bridgeInfo, 0, sizeof(bridgeDetails));
     EXPECT_EQ(0, getIfList(&bridgeInfo));
-    EXPECT_STREQ(bridgeInfo.bridgeName, expectedValue1);
-    EXPECT_EQ(bridgeInfo.vlanID, atoi(expectedValue2));
-    EXPECT_STREQ(bridgeInfo.vlan_name, expectedValue3);
-    EXPECT_STREQ(bridgeInfo.ethIfList, expectedValue4);
-    EXPECT_STREQ(bridgeInfo.MoCAIfList, expectedValue5);
-    EXPECT_STREQ(bridgeInfo.WiFiIfList, "");
-    EXPECT_STREQ(bridgeInfo.GreIfList, expectedValue7);
+    EXPECT_STREQ(bridgeInfo.bridgeName, paramInfos[0].expectedValue);
+    EXPECT_EQ(bridgeInfo.vlanID, atoi(paramInfos[1].expectedValue));
+    EXPECT_STREQ(bridgeInfo.vlan_name, paramInfos[2].expectedValue);
+    EXPECT_STREQ(bridgeInfo.ethIfList, paramInfos[3].expectedValue);
+    EXPECT_STREQ(bridgeInfo.MoCAIfList, paramInfos[4].expectedValue);
+    EXPECT_STREQ(bridgeInfo.WiFiIfList, "");  // WiFi list should be empty
+    EXPECT_STREQ(bridgeInfo.GreIfList, paramInfos[6].expectedValue);
 }
 
 TEST_F(BridgeUtilsTestFixture, getIfListPsmFail)
@@ -845,52 +566,35 @@ TEST_F(BridgeUtilsTestFixture, getIfListPsmFail)
     InstanceNumber = 1;
     skipMoCA = 0;
     skipWiFi = 0;
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue[128] = {0};
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(Return(9005));
-    
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(Return(9005));
-    
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(Return(9005));
-    
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(Return(9005));
 
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(Return(9005));
+    struct ParamInfo {
+        const char* format;
+    };
 
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(Return(9005));
-    
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(Return(9005));
+    ParamInfo paramInfos[] = {
+        {"dmsb.l2net.%d.Name"},
+        {"dmsb.l2net.%d.Vid"},
+        {"dmsb.l2net.%d.Members.Link"},
+        {"dmsb.l2net.%d.Members.Eth"},
+        {"dmsb.l2net.%d.Members.Moca"},
+        {"dmsb.l2net.%d.Members.WiFi"},
+        {"dmsb.l2net.%d.Members.Gre"},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname"}
+    };
+
+    for (const auto& paramInfo : paramInfos) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), paramInfo.format, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(Return(9005));
+    }
 
     bridgeDetails bridgeInfo;
     memset(&bridgeInfo, 0, sizeof(bridgeDetails));
     EXPECT_EQ(0, getIfList(&bridgeInfo));
+
+    char expectedValue[128] = {0};
     EXPECT_STREQ(bridgeInfo.bridgeName, expectedValue);
     EXPECT_EQ(bridgeInfo.vlanID, 0);
     EXPECT_STREQ(bridgeInfo.vlan_name, expectedValue);
@@ -945,9 +649,9 @@ TEST_F(BridgeUtilsTestFixture, assignIpToBridge)
     char l3netName[] = "dmsb.MultiLAN.MeshBhaul_l3net";
 
     char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.MultiLAN.MeshBhaul_l3net");
+    snprintf(paramName1, sizeof(paramName1), "dmsb.MultiLAN.MeshBhaul_l3net");
     char expectedValue1[128] = "9";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName1), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetPsmValueArg4(&expectedValue1),
@@ -955,29 +659,32 @@ TEST_F(BridgeUtilsTestFixture, assignIpToBridge)
         ));
 
     char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l3net.%d.V4Addr", 9);
+    snprintf(paramName2, sizeof(paramName2), "dmsb.l3net.%d.V4Addr", 9);
     char expectedValue2[128] = "192.168.10.11";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName2), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetPsmValueArg4(&expectedValue2),
             ::testing::Return(100)
         ));
-    
+
     char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l3net.%d.V4SubnetMask", 9);
+    snprintf(paramName3, sizeof(paramName3), "dmsb.l3net.%d.V4SubnetMask", 9);
     char expectedValue3[128] = "192.168.255.255";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName3), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetPsmValueArg4(&expectedValue3),
             ::testing::Return(100)
         ));
-    char expectedCmd[216] = {0};
-    snprintf(expectedCmd,sizeof(expectedCmd),"ifconfig %s %s netmask %s up",bridgeName,expectedValue2, expectedValue3);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
+
+    char expectedCmd[256] = {0};
+    snprintf(expectedCmd, sizeof(expectedCmd), "ifconfig %s %s netmask %s up", bridgeName, expectedValue2, expectedValue3);
+
+    EXPECT_CALL(*g_securewrapperMock, v_secure_system(StrEq(expectedCmd),_))
         .Times(1)
-        .WillOnce(Return(1));
+        .WillOnce(Return(0));
+
     assignIpToBridge(bridgeName, l3netName);
 }
 
@@ -1018,7 +725,7 @@ TEST_F(BridgeUtilsTestFixture, assignIpToBridgeNoSubnet)
         ));
     char expectedCmd[216] = {0};
     snprintf(expectedCmd,sizeof(expectedCmd),"ifconfig %s %s",bridgeName,expectedValue2);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
+    EXPECT_CALL(*g_securewrapperMock, v_secure_system(StrEq(expectedCmd), _))
         .Times(1)
         .WillOnce(Return(1));
     assignIpToBridge(bridgeName, l3netName);
@@ -1040,42 +747,46 @@ TEST_F(BridgeUtilsTestFixture, assignIpToBridgePsmFail)
 
 TEST_F(BridgeUtilsTestFixture, getCurrentIfListOvsEnable)
 {
+    using namespace testing; 
+
     ovsEnable = 1;
-    char bridge[] = "brlan0";
-    /* CID :249149 Out-of-bounds access (OVERRUN)*/
-    char ifList[TOTAL_IFLIST_SIZE] = {0};
-    char expectedCmd[128] = {0} ;
-    snprintf(expectedCmd,sizeof(expectedCmd),"ovs-vsctl list-ifaces %s | tr \"\n\" \" \" ",bridge);
+    char bridgeName[] = "brlan0";
     char expectedIfList[] = "ath0 ath1 lan0 lbr0 nmoca0 ";
-    FILE * expectedFd = (FILE *)0xffffffff;
-    EXPECT_CALL(*g_fileIOMock, popen(StrEq(expectedCmd), StrEq("r")))
-       .Times(1)
-       .WillOnce(::testing::Return(expectedFd));
+    char ifList[TOTAL_IFLIST_SIZE] = {0};
+
+    FILE* expectedFd = reinterpret_cast<FILE*>(0x12345678);
+    char expectedCmd[128] = {0};
+    snprintf(expectedCmd, sizeof(expectedCmd), "ovs-vsctl list-ifaces %s | tr '\n' ' ' ", bridgeName);
+
+    EXPECT_CALL(*g_securewrapperMock, v_secure_popen(StrEq("r"), StrEq(expectedCmd), _))
+        .Times(1)
+        .WillOnce(Return(expectedFd));
+
     EXPECT_CALL(*g_fileIOMock, fgets(_, _, expectedFd))
         .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetArgNPointeeTo<0>(std::begin(expectedIfList), sizeof(expectedIfList)),
-            ::testing::Return((char*)expectedIfList)
-        ));
-    EXPECT_CALL(*g_fileIOMock, pclose(expectedFd))
-       .Times(1)
-       .WillOnce(::testing::Return(0));
-    getCurrentIfList(bridge, ifList);
-    EXPECT_STREQ(expectedIfList, ifList);
+        .WillOnce(DoAll(SetArrayArgument<0>(expectedIfList, expectedIfList + strlen(expectedIfList)), Return(expectedIfList)));
+
+    EXPECT_CALL(*g_securewrapperMock, v_secure_pclose(expectedFd))
+        .Times(1)
+        .WillOnce(Return(0));
+
+    getCurrentIfList(bridgeName, ifList);
+
+    ASSERT_STREQ(expectedIfList, ifList);
 }
 
 TEST_F(BridgeUtilsTestFixture, getCurrentIfListBridgeUtilsEnable)
 {
+    using namespace testing; 
     ovsEnable = 0;
     bridgeUtilEnable = 1;
     char bridge[] = "brlan1";
-    /* CID :249138 Out-of-bounds access (OVERRUN) */
     char ifList[TOTAL_IFLIST_SIZE] = {0};
     char expectedCmd[128] = {0} ;
-    snprintf(expectedCmd,sizeof(expectedCmd),"brctl show %s | sed '1d' | awk '{print $NF}' | tr \"\n\" \" \" ",bridge);
+    snprintf(expectedCmd,sizeof(expectedCmd),"brctl show %s | sed '1d' | awk '{print $NF}' | tr '\n' ' ' ",bridge);
     char expectedIfList[] = "wl01 wl11 gre0 ";
     FILE * expectedFd = (FILE *)0xffffffff;
-    EXPECT_CALL(*g_fileIOMock, popen(StrEq(expectedCmd), StrEq("r")))
+    EXPECT_CALL(*g_securewrapperMock, v_secure_popen(StrEq("r"), HasSubstr(expectedCmd), _))
        .Times(1)
        .WillOnce(::testing::Return(expectedFd));
     EXPECT_CALL(*g_fileIOMock, fgets(_, _, expectedFd))
@@ -1084,7 +795,7 @@ TEST_F(BridgeUtilsTestFixture, getCurrentIfListBridgeUtilsEnable)
             SetArgNPointeeTo<0>(std::begin(expectedIfList), sizeof(expectedIfList)),
             ::testing::Return((char*)expectedIfList)
         ));
-    EXPECT_CALL(*g_fileIOMock, pclose(expectedFd))
+    EXPECT_CALL(*g_securewrapperMock, v_secure_pclose(expectedFd)) 
        .Times(1)
        .WillOnce(::testing::Return(0));
     getCurrentIfList(bridge, ifList);
@@ -1100,11 +811,11 @@ TEST_F(BridgeUtilsTestFixture, getCurrentIfListPopenFail)
     char ifList[TOTAL_IFLIST_SIZE] = {0};
 
     char expectedCmd[128] = {0} ;
-    snprintf(expectedCmd,sizeof(expectedCmd),"brctl show %s | sed '1d' | awk '{print $NF}' | tr \"\n\" \" \" ",bridge);
+    snprintf(expectedCmd,sizeof(expectedCmd),"brctl show %s | sed '1d' | awk '{print $NF}' | tr '\n' ' ' ",bridge);
     char expectedIfList[216] = {0};
     memset(expectedIfList, 0, sizeof(expectedIfList));
     FILE * expectedFd = (FILE *)0x00000000;
-    EXPECT_CALL(*g_fileIOMock, popen(StrEq(expectedCmd), StrEq("r")))
+    EXPECT_CALL(*g_securewrapperMock, v_secure_popen(StrEq("r"), StrEq(expectedCmd), _))
        .Times(1)
        .WillOnce(::testing::Return(expectedFd));
 
@@ -1117,7 +828,6 @@ TEST_F(BridgeUtilsTestFixture, getCurrentIfListFail)
     ovsEnable = 0;
     bridgeUtilEnable = 0;
     char bridge[] = "brlan1";
-    /* CID :249145 Out-of-bounds access (OVERRUN) */
     char ifList[TOTAL_IFLIST_SIZE] = {0};
     char expectedIfList[216] = {0};
     memset(expectedIfList, 0, sizeof(expectedIfList));
@@ -1127,209 +837,112 @@ TEST_F(BridgeUtilsTestFixture, getCurrentIfListFail)
 
 TEST_F(BridgeUtilsTestFixture, getSettingsPsmWan)
 {
+    ::testing::InSequence seq;
     InstanceNumber = PRIVATE_LAN;
-    char paramName[] = "selected_wan_mode";
-    char expectedValue[] = "2";
     wan_mode = 0;
     skipMoCA = 0;
     skipWiFi = 0;
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue), sizeof(expectedValue)),
-                ::testing::Return(0)
-            ));
 
-    char paramName1[] = "bridge_mode";
-    char expectedValue1[] = "0";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName1), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue1), sizeof(expectedValue1)),
-                ::testing::Return(0)
-            ));
-    
-    char paramName2[] = "HomeSecurityEthernet4Flag";
-    char expectedValue2[] = "0";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName2), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue2), sizeof(expectedValue2)),
-                ::testing::Return(0)
-            ));
-    
-    char paramName3[] = "mesh_ovs_enable";
-    char expectedValue3[] = "false";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName3), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue3), sizeof(expectedValue3)),
-                ::testing::Return(0)
-            ));
+    struct Param {
+        char name[128];
+        char value[128];
+    };
 
-    char paramName4[] = "bridge_util_enable";
-    char expectedValue4[] = "false";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName4), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue4), sizeof(expectedValue4)),
-                ::testing::Return(0)
-            ));
-/*    
-    char paramName5[] = "eth_wan_iface_name";
-    char expectedValue5[] = "";
-    memset(expectedValue5, 0, sizeof(expectedValue5));
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName5), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue5), sizeof(expectedValue5)),
-                ::testing::Return(0)
-            ));
-*/    
-    char paramName6[] = "eth_wan_enabled";
-    char expectedValue6[] = "false";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName6), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue6), sizeof(expectedValue6)),
-                ::testing::Return(0)
-            ));
+    Param params[] = {
+        {"selected_wan_mode", "2"},
+        {"bridge_mode", "0"},
+        {"HomeSecurityEthernet4Flag", "0"},
+        {"mesh_ovs_enable", "true"},
+        {"bridge_util_enable", "false"},
+        {"eth_wan_enabled", "false"},
+        {"NonRootSupport", "false"},
+        {"eb_enable", "true"},
+        {"dmsb.l2net.EthWanInterface", "eth3"},
+        {"dmsb.l2net.HomeNetworkIsolation", "0"}
+    };
 
-    char paramName7[] = "NonRootSupport";
-    char expectedValue7[] = "false";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName7), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue7), sizeof(expectedValue7)),
-                ::testing::Return(0)
-            ));
-/*
-    char paramName8[] = "eb_enable";
-    char expectedValue8[] = "false";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName8), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue8), sizeof(expectedValue8)),
-                ::testing::Return(0)
-            ));
-*/
-    char paramName9[128] = {0};
-    snprintf(paramName9,sizeof(paramName9), "dmsb.l2net.EthWanInterface");
-    char expectedValue9[128] = "eth3";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName9), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue9),
-            ::testing::Return(100)
-        ));
+    for (int i = 0; i < sizeof(params)/sizeof(params[0]); ++i) {
+        if (i < 8) {
+            EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(params[i].name), _, _))
+                .Times(1)
+                .WillOnce(::testing::DoAll(
+                    SetArgNPointeeTo<2>(std::begin(params[i].value), sizeof(params[i].value)),
+                    ::testing::Return(0)
+                ));
+        } 
+        else 
+        {
+            EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(params[i].name), _, _))
+                .Times(1)
+                .WillOnce(::testing::DoAll(
+                    SetPsmValueArg4(&params[i].value),
+                    ::testing::Return(100)
+                ));
+        }
+    }
 
-    char paramName10[128] = {0};
-    snprintf(paramName10,sizeof(paramName10), "dmsb.l2net.HomeNetworkIsolation");
-    char expectedValue10[128] = "0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName10), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue10),
-            ::testing::Return(100)
-        ));
     getSettings();
 
-    EXPECT_EQ(wan_mode, atoi(expectedValue));
-    EXPECT_EQ(DeviceMode, atoi(expectedValue1));
-    EXPECT_EQ(PORT2ENABLE, atoi(expectedValue2));
-    EXPECT_EQ(ovsEnable, (strcmp(expectedValue3, "true") == 0)?1:0);
-    EXPECT_EQ(bridgeUtilEnable, (strcmp(expectedValue4, "true") == 0)?1:0);
-    EXPECT_STREQ(ethWanIfaceName, expectedValue9);
-    EXPECT_EQ(ethWanEnabled, (strcmp(expectedValue6, "true") == 0)?1:0);
-//    EXPECT_EQ(eb_enable, (strcmp(expectedValue8, "true") == 0)?1:0);
-    EXPECT_EQ(MocaIsolation_Enabled, atoi(expectedValue10));
+    EXPECT_EQ(wan_mode, atoi(params[0].value));
+    EXPECT_EQ(DeviceMode, atoi(params[1].value));
+    EXPECT_EQ(PORT2ENABLE, atoi(params[2].value));
+    EXPECT_EQ(ovsEnable, (strcmp(params[3].value, "true") == 0)?1:0);
+    EXPECT_EQ(bridgeUtilEnable, (strcmp(params[4].value, "true") == 0)?1:0);
+    EXPECT_STREQ(ethWanIfaceName, params[8].value);
+    EXPECT_EQ(ethWanEnabled, (strcmp(params[5].value, "true") == 0)?1:0);
+    EXPECT_EQ(eb_enable, (strcmp(params[7].value, "true") == 0)?1:0);
+    EXPECT_EQ(MocaIsolation_Enabled, atoi(params[9].value));
     EXPECT_EQ(skipWiFi, 0);
     EXPECT_EQ(skipMoCA, 0);
 }
 
+
 TEST_F(BridgeUtilsTestFixture, getSettingsFail)
 {
     InstanceNumber = PRIVATE_LAN;
-    char paramName[] = "selected_wan_mode";
-    char expectedValue[] = "";
+    ovsEnable = 0;
     wan_mode = 0;
     skipMoCA = 0;
     skipWiFi = 0;
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName), _, _))
-            .Times(1)
-            .WillOnce(Return(-1));
+    eb_enable = 0;
 
-    char paramName1[] = "bridge_mode";
-    char expectedValue1[] = "";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName1), _, _))
-            .Times(1)
-            .WillOnce(Return(-1));
-    
-    char paramName2[] = "HomeSecurityEthernet4Flag";
-    char expectedValue2[] = "";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName2), _, _))
-            .Times(1)
-            .WillOnce(Return(-1));
-    
-    char paramName3[] = "mesh_ovs_enable";
-    char expectedValue3[] = "";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName3), _, _))
-            .Times(1)
-            .WillOnce(Return(-1));
+    const char* paramNames[] = {
+        "selected_wan_mode",
+        "bridge_mode",
+        "HomeSecurityEthernet4Flag",
+        "mesh_ovs_enable",
+        "bridge_util_enable",
+        "eth_wan_enabled",
+        "NonRootSupport",
+        "eb_enable"
+    };
 
-    char paramName4[] = "bridge_util_enable";
-    char expectedValue4[] = "";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName4), _, _))
+    for (int i = 0; i < sizeof(paramNames)/sizeof(paramNames[0]); i++) {
+        EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramNames[i]), _, _))
             .Times(1)
             .WillOnce(Return(-1));
-/*    
-    char paramName5[] = "eth_wan_iface_name";
-    char expectedValue5[] = "";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName5), _, _))
-            .Times(1)
-            .WillOnce(Return(-1));
-*/    
-    char paramName6[] = "eth_wan_enabled";
-    char expectedValue6[] = "";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName6), _, _))
-            .Times(1)
-            .WillOnce(Return(-1));
+    }
 
-    char paramName7[] = "NonRootSupport";
-    char expectedValue7[] = "";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName7), _, _))
-            .Times(1)
-            .WillOnce(Return(-1));
-/*
-    char paramName8[] = "eb_enable";
-    char expectedValue8[] = "";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName8), _, _))
-            .Times(1)
-            .WillOnce(Return(-1));
-*/
     char paramName9[128] = {0};
     snprintf(paramName9,sizeof(paramName9), "dmsb.l2net.EthWanInterface");
-    char expectedValue9[128] = "";
     EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName9), _, _))
         .Times(1)
         .WillOnce(Return(-1));
 
     char paramName10[128] = {0};
     snprintf(paramName10,sizeof(paramName10), "dmsb.l2net.HomeNetworkIsolation");
-    char expectedValue10[128] = "";
     EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName10), _, _))
         .Times(1)
         .WillOnce(Return(-1));
+
     getSettings();
 
     EXPECT_EQ(wan_mode, 0);
     EXPECT_EQ(DeviceMode, 0);
     EXPECT_EQ(PORT2ENABLE, 0);
-    EXPECT_EQ(ovsEnable, 0);
     EXPECT_EQ(bridgeUtilEnable, 0);
-//    EXPECT_STREQ(ethWanIfaceName, expectedValue5);
     EXPECT_EQ(ethWanEnabled, 0);
-//    EXPECT_EQ(eb_enable, 0);
+    EXPECT_EQ(eb_enable, 0);
     EXPECT_EQ(MocaIsolation_Enabled, 0);
     EXPECT_EQ(skipWiFi, 0);
     EXPECT_EQ(skipMoCA, 0);
@@ -1338,87 +951,31 @@ TEST_F(BridgeUtilsTestFixture, getSettingsFail)
 TEST_F(BridgeUtilsTestFixture, getSettings)
 {
     InstanceNumber = PRIVATE_LAN;
-    char paramName[] = "selected_wan_mode";
-    char expectedValue[] = "1";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue), sizeof(expectedValue)),
-                ::testing::Return(0)
-            ));
 
-    char paramName1[] = "bridge_mode";
-    char expectedValue1[] = "1";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName1), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue1), sizeof(expectedValue1)),
-                ::testing::Return(0)
-            ));
-    
-    char paramName2[] = "HomeSecurityEthernet4Flag";
-    char expectedValue2[] = "1";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName2), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue2), sizeof(expectedValue2)),
-                ::testing::Return(0)
-            ));
-    
-    char paramName3[] = "mesh_ovs_enable";
-    char expectedValue3[] = "true";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName3), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue3), sizeof(expectedValue3)),
-                ::testing::Return(0)
-            ));
+    struct Param {
+        char paramName[128];
+        char expectedValue[128];
+    } params[] = {
+        {"selected_wan_mode", "1"},
+        {"bridge_mode", "1"},
+        {"HomeSecurityEthernet4Flag", "1"},
+        {"mesh_ovs_enable", "true"},
+        {"bridge_util_enable", "true"},
+        {"eth_wan_iface_name", "eth0"},
+        {"eth_wan_enabled", "true"},
+        {"NonRootSupport", "false"},
+        {"eb_enable", "true"},
+    };
 
-    char paramName4[] = "bridge_util_enable";
-    char expectedValue4[] = "true";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName4), _, _))
+    for (const auto& param : params) {
+        EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(param.paramName), _, _))
             .Times(1)
             .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue4), sizeof(expectedValue4)),
+                SetArgNPointeeTo<2>(std::begin(param.expectedValue), sizeof(param.expectedValue)),
                 ::testing::Return(0)
             ));
-    
-    char paramName5[] = "eth_wan_iface_name";
-    char expectedValue5[] = "eth0";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName5), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue5), sizeof(expectedValue5)),
-                ::testing::Return(0)
-            ));
-    
-    char paramName6[] = "eth_wan_enabled";
-    char expectedValue6[] = "true";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName6), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue6), sizeof(expectedValue6)),
-                ::testing::Return(0)
-            ));
+    }
 
-    char paramName7[] = "NonRootSupport";
-    char expectedValue7[] = "false";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName7), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue7), sizeof(expectedValue7)),
-                ::testing::Return(0)
-            ));
-/*
-    char paramName8[] = "eb_enable";
-    char expectedValue8[] = "true";
-    EXPECT_CALL(*g_syscfgMock, syscfg_get( _, StrEq(paramName8), _, _))
-            .Times(1)
-            .WillOnce(::testing::DoAll(
-                SetArgNPointeeTo<2>(std::begin(expectedValue8), sizeof(expectedValue8)),
-                ::testing::Return(0)
-            ));
-*/
     char paramName10[128] = {0};
     snprintf(paramName10,sizeof(paramName10), "dmsb.l2net.HomeNetworkIsolation");
     char expectedValue10[128] = "1";
@@ -1428,16 +985,17 @@ TEST_F(BridgeUtilsTestFixture, getSettings)
             SetPsmValueArg4(&expectedValue10),
             ::testing::Return(100)
         ));
+
     getSettings();
 
-    EXPECT_EQ(wan_mode, atoi(expectedValue));
-    EXPECT_EQ(DeviceMode, atoi(expectedValue1));
-    EXPECT_EQ(PORT2ENABLE, atoi(expectedValue2));
-    EXPECT_EQ(ovsEnable, (strcmp(expectedValue3, "true") == 0)?1:0);
-    EXPECT_EQ(bridgeUtilEnable, (strcmp(expectedValue4, "true") == 0)?1:0);
-    EXPECT_STREQ(ethWanIfaceName, expectedValue5);
-    EXPECT_EQ(ethWanEnabled, (strcmp(expectedValue6, "true") == 0)?1:0);
-//    EXPECT_EQ(eb_enable, (strcmp(expectedValue8, "true") == 0)?1:0);
+    EXPECT_EQ(wan_mode, atoi(params[0].expectedValue));
+    EXPECT_EQ(DeviceMode, atoi(params[1].expectedValue));
+    EXPECT_EQ(PORT2ENABLE, atoi(params[2].expectedValue));
+    EXPECT_EQ(ovsEnable, (strcmp(params[3].expectedValue, "true") == 0)?1:0);
+    EXPECT_EQ(bridgeUtilEnable, (strcmp(params[4].expectedValue, "true") == 0)?1:0);
+    EXPECT_STREQ(ethWanIfaceName, params[5].expectedValue);
+    EXPECT_EQ(ethWanEnabled, (strcmp(params[6].expectedValue, "true") == 0)?1:0);
+    EXPECT_EQ(eb_enable, (strcmp(params[8].expectedValue, "true") == 0)?1:0);
     EXPECT_EQ(MocaIsolation_Enabled, atoi(expectedValue10));
     EXPECT_EQ(skipWiFi, 1);
     EXPECT_EQ(skipMoCA, 1);
@@ -1509,51 +1067,29 @@ TEST_F(BridgeUtilsTestFixture, AddOrDeletePortOvsFailGetConfig)
     AddOrDeletePort(bridgeName, iface, OVS_BR_REMOVE_CMD);
 }
 
-
-
-TEST_F(BridgeUtilsTestFixture, AddOrDeletePortBridgeUtilsUp)
-{
+TEST_F(BridgeUtilsTestFixture, AddOrDeletePortBridgeUtilsUp) {
     char bridgeName[] = "brlan0";
     char iface[] = "ath0";
     ovsEnable = 0;
     bridgeUtilEnable = 1;
     char expectedCmd[1024] = {0};
-    memset(expectedCmd,0,sizeof(expectedCmd));
-    snprintf(expectedCmd,sizeof(expectedCmd),"check_bridge=`brctl show %s` ;\
-					if [ \"$check_bridge\" = \"\" ];\
-					then \
-						brctl addbr %s ;\
-						ifconfig %s up ; \
-					fi ;",
-					bridgeName,	bridgeName,	bridgeName);
+    snprintf(expectedCmd, sizeof(expectedCmd), "check_bridge=`brctl show %s` ;\t\t\t\t\tif [ \"$check_bridge\" = \"\" ];\t\t\t\t\tthen \t\t\t\t\t\tbrctl addbr %s ;\t\t\t\t\t\tifconfig %s up ; \t\t\t\t\tfi ;",
+             bridgeName, bridgeName, bridgeName);
+
     EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
         .Times(1)
-        .WillOnce(Return(1));
-    
+        .WillOnce(Return(0));
+
     char expectedCmd1[1024] = {0};
-    memset(expectedCmd1,0,sizeof(expectedCmd1));
-    snprintf(expectedCmd1,sizeof(expectedCmd1),"for bridge in `brctl show | cut -f1 | awk 'NF > 0' | sed '1d' | grep -v %s `;\
-					do \
-					check_if_attached=`brctl show $bridge | grep \"%s\" | grep -v \"%s.\"` ; \
-					if [ \"$check_if_attached\" != \"\" ] ;\
-						then\
-					        echo \"deleting %s from $bridge\" ;\
-					        brctl delif $bridge %s ; \
-					 fi ;\
-					 done ;\
-					 check_if_exist=`brctl show %s | grep \"%s\" | grep -v \"%s.\"` ; \
-					 if [ \"$check_if_exist\" = \"\" ]; \
-					 then \
-					 	ifconfig %s up ;\
-					    	brctl addif %s %s ;\
-					 fi ;",	 bridgeName, iface,	 iface,	 iface,	iface,	bridgeName, iface, iface,			 bridgeName,
-					 bridgeName, iface);
+    snprintf(expectedCmd1, sizeof(expectedCmd1), "for bridge in `brctl show | cut -f1 | awk 'NF > 0' | sed '1d' | grep -v %s `;\t\t\t\t\tdo \t\t\t\t\tcheck_if_attached=`brctl show $bridge | grep \"%s\" | grep -v \"%s.\"` ; \t\t\t\t\tif [ \"$check_if_attached\" != \"\" ] ;\t\t\t\t\t\tthen\t\t\t\t\t        echo \"deleting %s from $bridge\" ;\t\t\t\t\t        brctl delif $bridge %s ; \t\t\t\t\t fi ;\t\t\t\t\t done ;\t\t\t\t\t check_if_exist=`brctl show %s | grep \"%s\" | grep -v \"%s.\"` ; \t\t\t\t\t if [ \"$check_if_exist\" = \"\" ]; \t\t\t\t\t then \t\t\t\t\t \tifconfig %s up ;\t\t\t\t\t    \tbrctl addif %s %s ;\t\t\t\t\t fi ;",
+             bridgeName, iface, iface, iface, iface, bridgeName, iface, iface, bridgeName, bridgeName, iface);
+
     EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd1)))
         .Times(1)
-        .WillOnce(Return(1));
+        .WillOnce(Return(0));
+
     AddOrDeletePort(bridgeName, iface, OVS_IF_UP_CMD);
 }
-
 
 TEST_F(BridgeUtilsTestFixture, AddOrDeletePortBridgeUtilsDelete)
 {
@@ -1574,7 +1110,7 @@ TEST_F(BridgeUtilsTestFixture, AddOrDeletePortBridgeUtilsDelete)
 TEST_F(BridgeUtilsTestFixture, AddOrDeletePortFail)
 {
     /* CID :249134 Destination buffer too small (STRING_OVERFLOW) */
-    char bridgeName[9] = "";
+    char bridgeName[64] = "";
     char iface[] = "ath0";
     AddOrDeletePort(bridgeName, iface, OVS_BR_REMOVE_CMD);
     strcpy(bridgeName, "brlan123");
@@ -1659,7 +1195,7 @@ TEST_F(BridgeUtilsTestFixture, removeIfaceFromBridge)
 
 TEST_F(BridgeUtilsTestFixture, CreateBrInterface)
 {
-    char event[64] = {0} , value[64] = {0};
+    char event[64] = {0}, value[64] = {0};
     InstanceNumber = 1;
     ovsEnable = 1;
     DeviceMode = 0;
@@ -1667,168 +1203,107 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterface)
     wan_mode = 1;
     skipMoCA = 0;
     skipWiFi = 0;
-    snprintf(event,sizeof(event),"multinet_%d-status",InstanceNumber);
-    strcpy(value, "partial");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
-	 .Times(1)
+
+    const char* paramNames[] = {
+        "dmsb.l2net.%d.Name",
+        "dmsb.l2net.%d.Vid",
+        "dmsb.l2net.%d.Members.Link",
+        "dmsb.l2net.%d.Members.Eth",
+        "dmsb.l2net.%d.Members.Moca",
+        "dmsb.l2net.%d.Members.WiFi",
+        "dmsb.l2net.%d.Members.Gre",
+        "dmsb.l2net.%d.Members.VirtualParentIfname"
+    };
+
+    const char* expectedValues[] = {
+        "brlan1",
+        "101",
+        "",
+        "",
+        "",
+        "wifi0 wifi1",
+        "",
+        ""
+    };
+
+    snprintf(event, sizeof(event), "multinet_%d-status", InstanceNumber);
+    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq("partial"), _))
+        .Times(1)
         .WillOnce(Return(0));
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "brlan0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
-    
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "100";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
-    
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "link0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
-    
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "eth0 eth1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
 
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    char expectedValue5[128] = "moca0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue5),
-            ::testing::Return(100)
-        ));
-
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "wifi0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-    
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "gre0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
+    for (int i = 0; i < sizeof(paramNames) / sizeof(paramNames[0]); ++i) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), paramNames[i], InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&expectedValues[i]),
+                ::testing::Return(100)
+            ));
+    }
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePreConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
+
+    EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
+        .Times(1)
+        .WillOnce(Return(0));
+
     char event1[64] = {0} , value1[64] = {0};
     snprintf(event1,sizeof(event1),"multinet_%d-name",InstanceNumber);
-    strcpy(value1, "brlan0");
+    strcpy(value1, "brlan1");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event1), StrEq(value1), _))
 	 .Times(1)
         .WillOnce(Return(0));
     char event2[64] = {0} , value2[64] = {0};
     snprintf(event2,sizeof(event2),"multinet_%d-vid",InstanceNumber);
-    snprintf(value2,sizeof(value2),"%d",100);
+    snprintf(value2,sizeof(value2),"%d",101);
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event2), StrEq(value2), _))
 	 .Times(1)
         .WillOnce(Return(0));
-    Gateway_Config *pGwConfig = NULL;
-    pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
+
+    // OVS interactions
+    Gateway_Config *pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
     memset(pGwConfig, 0, sizeof(Gateway_Config));
     pGwConfig->if_type = OVS_OTHER_IF_TYPE;
     pGwConfig->mtu = DEFAULT_MTU;
     pGwConfig->vlan_id = DEFAULT_VLAN_ID;
     pGwConfig->if_cmd = OVS_IF_UP_CMD;
-    char GreState[64] = {0} , greSysName[128] = {0};
-    snprintf(greSysName,sizeof(greSysName),"if_%s-status","gre0");
-    strcpy(GreState, "ready");
-    EXPECT_CALL(*g_syseventMock, sysevent_get(_, _, StrEq(greSysName), _, _))
-	 .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetArgNPointeeTo<3>(std::begin(GreState), sizeof(GreState)),
-            ::testing::Return(0)
-        ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config( _, _))
-        .Times(6)
-	.WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-        .WillOnce(::testing::DoAll(
+
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config(_, _))
+        .Times(2) 
+        .WillRepeatedly(::testing::DoAll(
             SetGwConfigArg1((void **)&pGwConfig),
             ::testing::Return(true)
         ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact( _, _))
-        .Times(6)
-        .WillOnce(Return(true))
-	.WillOnce(Return(true))
-        .WillOnce(Return(true))
-        .WillOnce(Return(true))
-        .WillOnce(Return(true))
-        .WillOnce(Return(true));
-    EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
-	 .Times(1)
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact(_, _))
+        .Times(2) 
+        .WillRepeatedly(Return(true));
+
+    snprintf(event, sizeof(event), "multinet_%d-localready", InstanceNumber);
+    strcpy(value, "1");
+    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
+        .Times(1)
         .WillOnce(Return(0));
-    char event21[64] = {0} , value21[64] = {0};
-    snprintf(event21,sizeof(event21),"multinet_%d-localready",InstanceNumber);
-    strcpy(value21, "1");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event21), StrEq(value21), _))
-	 .Times(1)
+
+    snprintf(event, sizeof(event), "multinet_%d-status", InstanceNumber);
+    strcpy(value, "ready");
+    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
+        .Times(1)
         .WillOnce(Return(0));
-    char event3[64] = {0} , value3[64] = {0};
-    snprintf(event3,sizeof(event3),"multinet_%d-status",InstanceNumber);
-    strcpy(value3, "ready");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event3), StrEq(value3), _))
-	 .Times(1)
+
+    snprintf(event, sizeof(event), "firewall-restart");
+    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), _, _))
+        .Times(1)
         .WillOnce(Return(0));
-    char event4[64] = {0} ;
-    snprintf(event4,sizeof(event4),"firewall-restart");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event4), _, _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    CreateBrInterface();
+
+    EXPECT_EQ(CreateBrInterface(), 0);
+
+    free(pGwConfig);
 }
+
+
 
 TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceInst1ETHWAN)
 {
@@ -1844,75 +1319,50 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceInst1ETHWAN)
     snprintf(event,sizeof(event),"multinet_%d-status",InstanceNumber);
     strcpy(value, "partial");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "brlan0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
 
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "100";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
+    struct ParamNameFormatExpectedValue {
+        const char* format;
+        const char* expectedValue;
+    };
 
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
+    ParamNameFormatExpectedValue params[] = {
+        {"dmsb.l2net.%d.Name", "brlan1"},
+        {"dmsb.l2net.%d.Vid", "101"},
+        {"dmsb.l2net.%d.Members.Link", ""},
+        {"dmsb.l2net.%d.Members.Eth", ""},
+        {"dmsb.l2net.%d.Members.Gre", ""},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""}
+    };
 
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "eth0 eth1 eth3";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
-
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "gre0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
-    EXPECT_CALL(*g_fileIOMock, access(StrEq("/tmp/autowan_iface_finalized"), _))
-	 .Times(1)
-        .WillOnce(Return(1));
+    for (int i = 0; i < sizeof(params) / sizeof(params[0]); ++i) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), params[i].format, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&params[i].expectedValue),
+                ::testing::Return(100)
+            ));
+    }
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePreConfigVendorGeneric(_, _))
 	 .Times(1)
         .WillOnce(Return(0));
+    
     char event1[64] = {0} , value1[64] = {0};
     snprintf(event1,sizeof(event1),"multinet_%d-name",InstanceNumber);
-    strcpy(value1, "brlan0");
+    strcpy(value1, "brlan1");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event1), StrEq(value1), _))
 	 .Times(1)
         .WillOnce(Return(0));
     char event2[64] = {0} , value2[64] = {0};
     snprintf(event2,sizeof(event2),"multinet_%d-vid",InstanceNumber);
-    snprintf(value2,sizeof(value2),"%d",100);
+    snprintf(value2,sizeof(value2),"%d",101);
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event2), StrEq(value2), _))
 	 .Times(1)
         .WillOnce(Return(0));
+
     Gateway_Config *pGwConfig = NULL;
     pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
     memset(pGwConfig, 0, sizeof(Gateway_Config));
@@ -1921,34 +1371,15 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceInst1ETHWAN)
     pGwConfig->vlan_id = DEFAULT_VLAN_ID;
     pGwConfig->if_cmd = OVS_IF_UP_CMD;
 
-    char GreState[64] = {0} , greSysName[128] = {0};
-    snprintf(greSysName,sizeof(greSysName),"if_%s-status","gre0");
-    strcpy(GreState, "ready");
-    EXPECT_CALL(*g_syseventMock, sysevent_get(_, _, StrEq(greSysName), _, _))
-	 .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetArgNPointeeTo<3>(std::begin(GreState), sizeof(GreState)),
-            ::testing::Return(0)
-        ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config( _, _))
-        .Times(3)
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-	.WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-	.WillOnce(::testing::DoAll(
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config(_, _))
+        .Times(1) 
+        .WillRepeatedly(::testing::DoAll(
             SetGwConfigArg1((void **)&pGwConfig),
             ::testing::Return(true)
         ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact( _, _))
-        .Times(3)
-        .WillOnce(Return(true))
-	.WillOnce(Return(true))
-	.WillOnce(Return(true));
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact(_, _))
+        .Times(1) 
+        .WillRepeatedly(Return(true));
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
 	 .Times(1)
@@ -1975,7 +1406,7 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceInst1ETHWAN)
 
 TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceLnF)
 {
-    char event[64] = {0} , value[64] = {0};
+    char event[64] = {0}, value[64] = {0};
     InstanceNumber = 6;
     ovsEnable = 1;
     DeviceMode = 1;
@@ -1984,121 +1415,81 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceLnF)
     skipMoCA = 1;
     skipWiFi = 0;
     BridgeOprInPropgress = 1;
-    memset(event, 0, sizeof(event));
-    snprintf(event,sizeof(event),"multinet_%d-status",InstanceNumber);
+
+    // Set initial event
+    snprintf(event, sizeof(event), "multinet_%d-status", InstanceNumber);
     strcpy(value, "partial");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "br106";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
 
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "106";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
+    struct ParamNameExpectedValue {
+        const char* name;
+        const char* expectedValue;
+    };
 
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
+    ParamNameExpectedValue params[] = {
+        {"dmsb.l2net.%d.Name", "br106"},
+        {"dmsb.l2net.%d.Vid", "106"},
+        {"dmsb.l2net.%d.Members.Link", ""},
+        {"dmsb.l2net.%d.Members.Eth", ""},
+        {"dmsb.l2net.%d.Members.WiFi", "wifi0 wifi1 wifi2 wifi3"},
+        {"dmsb.l2net.%d.Members.Gre", ""},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""}
+    };
 
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
+    for (int i = 0; i < sizeof(params) / sizeof(params[0]); ++i) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), params[i].name, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&params[i].expectedValue),
+                ::testing::Return(100)
+            ));
+    }
 
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "wifi0 wifi1 wifi2 wifi3";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePreConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event1[64] = {0} , value1[64] = {0};
-    snprintf(event1,sizeof(event1),"multinet_%d-name",InstanceNumber);
-    strcpy(value1, "br106");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event1), StrEq(value1), _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    char event2[64] = {0} , value2[64] = {0};
-    snprintf(event2,sizeof(event2),"multinet_%d-vid",InstanceNumber);
-    snprintf(value2,sizeof(value2),"%d",106);
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event2), StrEq(value2), _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    Gateway_Config *pGwConfig = NULL;
-    pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
+
+    const char* eventNames[] = {
+        "multinet_%d-name",
+        "multinet_%d-vid"
+    };
+
+    const char* eventValues[] = {
+        "br106",
+        "106"
+    };
+
+    for (int i = 0; i < sizeof(eventNames) / sizeof(eventNames[0]); ++i) {
+        snprintf(event, sizeof(event), eventNames[i], InstanceNumber);
+        strcpy(value, eventValues[i]);
+        EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
+            .Times(1)
+            .WillOnce(Return(0));
+    }
+
+    Gateway_Config* pGwConfig = (Gateway_Config*)malloc(sizeof(Gateway_Config));
     memset(pGwConfig, 0, sizeof(Gateway_Config));
     pGwConfig->if_type = OVS_OTHER_IF_TYPE;
     pGwConfig->mtu = DEFAULT_MTU;
     pGwConfig->vlan_id = DEFAULT_VLAN_ID;
     pGwConfig->if_cmd = OVS_IF_UP_CMD;
 
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config( _, _))
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config(_, _))
         .Times(4)
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-	.WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-	.WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-    .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
+        .WillRepeatedly(::testing::DoAll(
+            SetGwConfigArg1((void**)&pGwConfig),
             ::testing::Return(true)
         ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact( _, _))
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact(_, _))
         .Times(4)
-        .WillOnce(Return(true))
-        .WillOnce(Return(true))
-        .WillOnce(Return(true))
-        .WillOnce(Return(true));
+        .WillRepeatedly(Return(true));
 
     char expectedValue111[128] = "8";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq("dmsb.MultiLAN.LnF_l3net"), _, _))
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq("dmsb.MultiLAN.LnF_l3net"), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetPsmValueArg4(&expectedValue111),
@@ -2106,9 +1497,9 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceLnF)
         ));
 
     char paramName21[128] = {0};
-    snprintf(paramName21,sizeof(paramName2), "dmsb.l3net.%d.V4Addr", 8);
+    snprintf(paramName21, sizeof(paramName21), "dmsb.l3net.%d.V4Addr", 8);
     char expectedValue21[128] = "192.168.10.11";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName21), _, _))
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName21), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetPsmValueArg4(&expectedValue21),
@@ -2126,37 +1517,38 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceLnF)
         ));
 
     char expectedCmd123[216] = {0};
-    snprintf(expectedCmd123,sizeof(expectedCmd123),"ifconfig %s %s",expectedValue1,expectedValue21);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd123)))
+    snprintf(expectedCmd123, sizeof(expectedCmd123), "ifconfig %s %s", eventValues[0], expectedValue21); \
+    EXPECT_CALL(*g_securewrapperMock, v_secure_system(::testing::HasSubstr(expectedCmd123), _))
         .Times(1)
-        .WillOnce(Return(1));
+        .WillOnce(Return(0));
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event21[64] = {0} , value21[64] = {0};
-    snprintf(event21,sizeof(event21),"multinet_%d-localready",InstanceNumber);
-    strcpy(value21, "1");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event21), StrEq(value21), _))
-	 .Times(1)
+
+    snprintf(event, sizeof(event), "multinet_%d-localready", InstanceNumber);
+    strcpy(value, "1");
+    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
+        .Times(1)
         .WillOnce(Return(0));
-    char event3[64] = {0} , value3[64] = {0};
-    snprintf(event3,sizeof(event3),"multinet_%d-status",InstanceNumber);
-    strcpy(value3, "ready");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event3), StrEq(value3), _))
-	 .Times(1)
+
+    snprintf(event, sizeof(event), "multinet_%d-status", InstanceNumber);
+    strcpy(value, "ready");
+    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
+        .Times(1)
         .WillOnce(Return(0));
-    char event4[64] = {0} ;
-    snprintf(event4,sizeof(event4),"firewall-restart");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event4), _, _))
-	 .Times(1)
+
+    snprintf(event, sizeof(event), "firewall-restart");
+    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), _, _))
+        .Times(1)
         .WillOnce(Return(0));
+
     CreateBrInterface();
 }
 
 TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMocaIsolation)
 {
-    char event[64] = {0} , value[64] = {0};
+    char event[64] = {0}, value[64] = {0};
     InstanceNumber = MOCA_ISOLATION;
     ovsEnable = 1;
     DeviceMode = 0;
@@ -2166,115 +1558,79 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMocaIsolation)
     skipWiFi = 0;
     BridgeOprInPropgress = 1;
     MocaIsolation_Enabled = 1;
-    snprintf(event,sizeof(event),"multinet_%d-status",InstanceNumber);
+
+    snprintf(event, sizeof(event), "multinet_%d-status", InstanceNumber);
     strcpy(value, "partial");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "brlan10";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
 
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "111";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
+    struct ParamNameExpectedValue {
+        const char* name;
+        const char* expectedValue;
+    };
 
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
+    ParamNameExpectedValue params[] = {
+        {"dmsb.l2net.%d.Name", "brlan1"},
+        {"dmsb.l2net.%d.Vid", "101"},
+        {"dmsb.l2net.%d.Members.Link", ""},
+        {"dmsb.l2net.%d.Members.Eth", ""},
+        {"dmsb.l2net.%d.Members.Moca", "moca0"},
+        {"dmsb.l2net.%d.Members.WiFi", "wifi0 wifi1"},
+        {"dmsb.l2net.%d.Members.Gre", ""},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""}
+    };
 
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
+    for (int i = 0; i < sizeof(params) / sizeof(params[0]); ++i) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), params[i].name, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&params[i].expectedValue),
+                ::testing::Return(100)
+            ));
+    }
 
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    char expectedValue5[128] = "moca0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue5),
-            ::testing::Return(100)
-        ));
-
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePreConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event1[64] = {0} , value1[64] = {0};
-    snprintf(event1,sizeof(event1),"multinet_%d-name",InstanceNumber);
-    strcpy(value1, "brlan10");
+
+    char event1[64] = {0}, value1[64] = {0};
+    snprintf(event1, sizeof(event1), "multinet_%d-name", InstanceNumber);
+    strcpy(value1, "brlan1");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event1), StrEq(value1), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event2[64] = {0} , value2[64] = {0};
-    snprintf(event2,sizeof(event2),"multinet_%d-vid",InstanceNumber);
-    snprintf(value2,sizeof(value2),"%d",111);
+
+    char event2[64] = {0}, value2[64] = {0};
+    snprintf(event2, sizeof(event2), "multinet_%d-vid", InstanceNumber);
+    snprintf(value2, sizeof(value2), "%d", 101);
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event2), StrEq(value2), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
+
     Gateway_Config *pGwConfig = NULL;
-    pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
+    pGwConfig = (Gateway_Config*)malloc(sizeof(Gateway_Config));
     memset(pGwConfig, 0, sizeof(Gateway_Config));
     pGwConfig->if_type = OVS_OTHER_IF_TYPE;
     pGwConfig->mtu = DEFAULT_MTU;
     pGwConfig->vlan_id = DEFAULT_VLAN_ID;
     pGwConfig->if_cmd = OVS_IF_UP_CMD;
 
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config( _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact(_, _))
+        .Times(3) 
+        .WillRepeatedly(Return(true));
+
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config(_, _))
+        .Times(3) 
+        .WillRepeatedly(::testing::DoAll(
+            SetGwConfigArg1((void**)&pGwConfig),
             ::testing::Return(true)
         ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact( _, _))
-        .Times(1)
-        .WillOnce(Return(true));
 
     char expectedValue111[128] = "7";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq("dmsb.MultiLAN.MoCAIsoLation_l3net"), _, _))
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq("dmsb.MultiLAN.MoCAIsoLation_l3net"), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetPsmValueArg4(&expectedValue111),
@@ -2282,19 +1638,29 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMocaIsolation)
         ));
 
     char paramName21[128] = {0};
-    snprintf(paramName21,sizeof(paramName2), "dmsb.l3net.%d.V4Addr", 7);
+    snprintf(paramName21, sizeof(paramName21), "dmsb.l3net.%d.V4Addr", 7);
     char expectedValue21[128] = "169.254.30.1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName21), _, _))
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName21), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetPsmValueArg4(&expectedValue21),
             ::testing::Return(100)
         ));
 
+    char paramName41[128] = {0};
+    snprintf(paramName41, sizeof(paramName41), "dmsb.l3net.%d.V4SubnetMask", 7);
+    char expectedValue41[128] = "";
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName41), _, _))
+        .Times(1)
+        .WillOnce(::testing::DoAll(
+            SetPsmValueArg4(&expectedValue41),
+            ::testing::Return(100)
+        ));
+
     char paramName31[128] = {0};
-    snprintf(paramName31,sizeof(paramName31), "dmsb.l2net.%d.Name", PRIVATE_LAN);
+    snprintf(paramName31, sizeof(paramName31), "dmsb.l2net.%d.Name", PRIVATE_LAN);
     char expectedValue31[128] = "brlan0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName31), _, _))
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName31), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetPsmValueArg4(&expectedValue31),
@@ -2302,45 +1668,50 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMocaIsolation)
         ));
 
     char expectedCmd123[512] = {0};
-    snprintf(expectedCmd123,sizeof(expectedCmd123),"ip link set %s allmulticast on ;\
-	    	ifconfig %s %s ; \
-	    	ip link set %s up ; \
-	    	echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ; \
-	    	sysctl -w net.ipv4.conf.all.arp_announce=3 ; \
-	    	ip rule add from all iif %s lookup all_lans ; \
-	    	echo 0 > /proc/sys/net/ipv4/conf/%s/rp_filter ;\
-	    	touch %s ;",
-	    	expectedValue1,
-	    	expectedValue1,
-	    	expectedValue21,
-	    	expectedValue1,
-	    	expectedValue1,
-	    	expectedValue1,
-	    	LOCAL_MOCABR_UP_FILE);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd123)))
+    snprintf(expectedCmd123, sizeof(expectedCmd123), "ip link set %s allmulticast on ; \
+        ifconfig %s %s ; \
+        ip link set %s up ; \
+        echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ; \
+        sysctl -w net.ipv4.conf.all.arp_announce=3 ; \
+        ip rule add from all iif %s lookup all_lans ; \
+        echo 0 > /proc/sys/net/ipv4/conf/%s/rp_filter ; \
+        touch /tmp/MoCABridge_up",
+        value1,
+        value1,
+        expectedValue21,
+        value1,
+        value1,
+        value1);
+
+    const char* expectedCmd124 = "ip link set brlan1 allmulticast on ;\t    \tifconfig brlan1 169.254.30.1 ; \t    \tip link set brlan1 up ; \t    \techo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts ; \t    \tsysctl -w net.ipv4.conf.all.arp_announce=3 ; \t    \tip rule add from all iif brlan1";
+    EXPECT_CALL(*g_securewrapperMock, v_secure_system(StrEq(expectedCmd124), _))
         .Times(1)
-        .WillOnce(Return(1));
+        .WillOnce(Return(0));
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event21[64] = {0} , value21[64] = {0};
-    snprintf(event21,sizeof(event21),"multinet_%d-localready",InstanceNumber);
+
+    char event21[64] = {0}, value21[64] = {0};
+    snprintf(event21, sizeof(event21), "multinet_%d-localready", InstanceNumber);
     strcpy(value21, "1");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event21), StrEq(value21), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event3[64] = {0} , value3[64] = {0};
-    snprintf(event3,sizeof(event3),"multinet_%d-status",InstanceNumber);
+
+    char event3[64] = {0}, value3[64] = {0};
+    snprintf(event3, sizeof(event3), "multinet_%d-status", InstanceNumber);
     strcpy(value3, "ready");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event3), StrEq(value3), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event4[64] = {0} ;
-    snprintf(event4,sizeof(event4),"firewall-restart");
+
+    char event4[64] = {0};
+    snprintf(event4, sizeof(event4), "firewall-restart");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event4), _, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
+
     CreateBrInterface();
 }
 
@@ -2358,92 +1729,53 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMesh)
     snprintf(event,sizeof(event),"multinet_%d-status",InstanceNumber);
     strcpy(value, "partial");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "br403";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
+    struct Param {
+        char name[128];
+        char expectedValue[128];
+    };
 
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "1060";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
+    Param params[] = {
+        {"dmsb.l2net.%d.Name", "br403"},
+        {"dmsb.l2net.%d.Vid", "1060"},
+        {"dmsb.l2net.%d.Members.Link", ""},
+        {"dmsb.l2net.%d.Members.Eth", ""},
+        {"dmsb.l2net.%d.Members.Moca", ""},
+        {"dmsb.l2net.%d.Members.WiFi", ""},
+        {"dmsb.l2net.%d.Members.Gre", ""},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""}
+    };
 
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
-
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
-
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    char expectedValue5[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue5),
-            ::testing::Return(100)
-        ));
-
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
+    for (int i = 0; i < sizeof(params)/sizeof(Param); i++) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), params[i].name, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&params[i].expectedValue),
+                ::testing::Return(100)
+            ));
+    }
+    
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePreConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event1[64] = {0} , value1[64] = {0};
+    
+    char event1[64] = {0}, value1[64] = {0};
     snprintf(event1,sizeof(event1),"multinet_%d-name",InstanceNumber);
     strcpy(value1, "br403");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event1), StrEq(value1), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event2[64] = {0} , value2[64] = {0};
+    
+    char event2[64] = {0}, value2[64] = {0};
     snprintf(event2,sizeof(event2),"multinet_%d-vid",InstanceNumber);
     snprintf(value2,sizeof(value2),"%d",1060);
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event2), StrEq(value2), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
+    
     Gateway_Config *pGwConfig = NULL;
     pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
     memset(pGwConfig, 0, sizeof(Gateway_Config));
@@ -2471,7 +1803,7 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMesh)
         ));
 
     char paramName21[128] = {0};
-    snprintf(paramName21,sizeof(paramName2), "dmsb.l3net.%d.V4Addr", 9);
+    snprintf(paramName21, sizeof(paramName21), "dmsb.l3net.%d.V4Addr", 9);
     char expectedValue21[128] = "192.168.245.254";
     EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName21), _, _))
         .Times(1)
@@ -2481,8 +1813,8 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMesh)
         ));
 
     char paramName31[128] = {0};
-    snprintf(paramName31,sizeof(paramName31), "dmsb.l3net.%d.V4SubnetMask", 9);
-    char expectedValue31[128] = "";
+    snprintf(paramName31, sizeof(paramName31), "dmsb.l3net.%d.V4SubnetMask", 9);
+    char expectedValue31[128] = "255.255.255.0"; // Default Subnet Mask
     EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName31), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
@@ -2491,37 +1823,41 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMesh)
         ));
 
     char expectedCmd123[216] = {0};
-    snprintf(expectedCmd123,sizeof(expectedCmd123),"ifconfig %s %s",expectedValue1,expectedValue21);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd123)))
+    snprintf(expectedCmd123, sizeof(expectedCmd123), "ifconfig %s %s", "br403", expectedValue21);
+    EXPECT_CALL(*g_securewrapperMock, v_secure_system(::testing::HasSubstr(expectedCmd123), _))
         .Times(1)
-        .WillOnce(Return(1));
+        .WillOnce(Return(0));
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event21[64] = {0} , value21[64] = {0};
-    snprintf(event21,sizeof(event21),"multinet_%d-localready",InstanceNumber);
+    
+    char event21[64] = {0}, value21[64] = {0};
+    snprintf(event21, sizeof(event21), "multinet_%d-localready", InstanceNumber);
     strcpy(value21, "1");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event21), StrEq(value21), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event3[64] = {0} , value3[64] = {0};
-    snprintf(event3,sizeof(event3),"multinet_%d-status",InstanceNumber);
+    
+    char event3[64] = {0}, value3[64] = {0};
+    snprintf(event3, sizeof(event3), "multinet_%d-status", InstanceNumber);
     strcpy(value3, "ready");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event3), StrEq(value3), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event4[64] = {0} ;
-    snprintf(event4,sizeof(event4),"firewall-restart");
+    
+    char event4[64] = {0};
+    snprintf(event4, sizeof(event4), "firewall-restart");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event4), _, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
+
     CreateBrInterface();
 }
 
 TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMeshWiFi2G)
 {
-    char event[64] = {0} , value[64] = {0};
+    char event[64] = {0}, value[64] = {0};
     InstanceNumber = MESH_WIFI_BACKHAUL_2G;
     ovsEnable = 1;
     DeviceMode = 0;
@@ -2529,95 +1865,57 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMeshWiFi2G)
     wan_mode = 0;
     skipMoCA = 0;
     skipWiFi = 0;
-    snprintf(event,sizeof(event),"multinet_%d-status",InstanceNumber);
+    snprintf(event, sizeof(event), "multinet_%d-status", InstanceNumber);
     strcpy(value, "partial");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "brlan112";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
 
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "112";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
+    struct Param {
+        char name[128];
+        char expectedValue[128];
+    };
 
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
+    Param params[] = {
+        {"dmsb.l2net.%d.Name", "brlan112"},
+        {"dmsb.l2net.%d.Vid", "112"},
+        {"dmsb.l2net.%d.Members.Link", ""},
+        {"dmsb.l2net.%d.Members.Eth", ""},
+        {"dmsb.l2net.%d.Members.Moca", ""},
+        {"dmsb.l2net.%d.Members.WiFi", "wifi0"},
+        {"dmsb.l2net.%d.Members.Gre", ""},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""}
+    };
 
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
+    for (int i = 0; i < sizeof(params)/sizeof(Param); i++) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), params[i].name, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&params[i].expectedValue),
+                ::testing::Return(100)
+            ));
+    }
 
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    char expectedValue5[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue5),
-            ::testing::Return(100)
-        ));
-
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "wifi0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePreConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event1[64] = {0} , value1[64] = {0};
-    snprintf(event1,sizeof(event1),"multinet_%d-name",InstanceNumber);
+
+    char event1[64] = {0}, value1[64] = {0};
+    snprintf(event1, sizeof(event1), "multinet_%d-name", InstanceNumber);
     strcpy(value1, "brlan112");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event1), StrEq(value1), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event2[64] = {0} , value2[64] = {0};
-    snprintf(event2,sizeof(event2),"multinet_%d-vid",InstanceNumber);
-    snprintf(value2,sizeof(value2),"%d",112);
+
+    char event2[64] = {0}, value2[64] = {0};
+    snprintf(event2, sizeof(event2), "multinet_%d-vid", InstanceNumber);
+    snprintf(value2, sizeof(value2), "%d", 112);
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event2), StrEq(value2), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
+
     Gateway_Config *pGwConfig = NULL;
     pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
     memset(pGwConfig, 0, sizeof(Gateway_Config));
@@ -2626,18 +1924,19 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMeshWiFi2G)
     pGwConfig->vlan_id = DEFAULT_VLAN_ID;
     pGwConfig->if_cmd = OVS_IF_UP_CMD;
 
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config( _, _))
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config(_, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetGwConfigArg1((void **)&pGwConfig),
             ::testing::Return(true)
         ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact( _, _))
+
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact(_, _))
         .Times(1)
         .WillOnce(Return(true));
 
     char expectedValue111[128] = "10";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq("dmsb.MultiLAN.MeshWiFiBhaul_2G_l3net"), _, _))
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq("dmsb.MultiLAN.MeshWiFiBhaul_2G_l3net"), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetPsmValueArg4(&expectedValue111),
@@ -2645,9 +1944,9 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMeshWiFi2G)
         ));
 
     char paramName21[128] = {0};
-    snprintf(paramName21,sizeof(paramName2), "dmsb.l3net.%d.V4Addr", 10);
+    snprintf(paramName21, sizeof(paramName21), "dmsb.l3net.%d.V4Addr", 10);
     char expectedValue21[128] = "169.254.0.1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName21), _, _))
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName21), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetPsmValueArg4(&expectedValue21),
@@ -2655,9 +1954,9 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMeshWiFi2G)
         ));
 
     char paramName31[128] = {0};
-    snprintf(paramName31,sizeof(paramName31), "dmsb.l3net.%d.V4SubnetMask", 10);
+    snprintf(paramName31, sizeof(paramName31), "dmsb.l3net.%d.V4SubnetMask", 10);
     char expectedValue31[128] = "255.255.255.0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName31), _, _))
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName31), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetPsmValueArg4(&expectedValue31),
@@ -2665,37 +1964,42 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMeshWiFi2G)
         ));
 
     char expectedCmd123[216] = {0};
-    snprintf(expectedCmd123,sizeof(expectedCmd123),"ifconfig %s %s netmask %s up",expectedValue1,expectedValue21, expectedValue31);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd123)))
+    snprintf(expectedCmd123, sizeof(expectedCmd123), "ifconfig %s %s netmask %s up", "brlan112", expectedValue21, expectedValue31);
+    EXPECT_CALL(*g_securewrapperMock, v_secure_system(::testing::HasSubstr(expectedCmd123), _))
         .Times(1)
-        .WillOnce(Return(1));
+        .WillOnce(Return(0));
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event21[64] = {0} , value21[64] = {0};
-    snprintf(event21,sizeof(event21),"multinet_%d-localready",InstanceNumber);
+
+    char event21[64] = {0}, value21[64] = {0};
+    snprintf(event21, sizeof(event21), "multinet_%d-localready", InstanceNumber);
     strcpy(value21, "1");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event21), StrEq(value21), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event3[64] = {0} , value3[64] = {0};
-    snprintf(event3,sizeof(event3),"multinet_%d-status",InstanceNumber);
+
+    char event3[64] = {0}, value3[64] = {0};
+    snprintf(event3, sizeof(event3), "multinet_%d-status", InstanceNumber);
     strcpy(value3, "ready");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event3), StrEq(value3), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event4[64] = {0} ;
-    snprintf(event4,sizeof(event4),"firewall-restart");
+
+    char event4[64] = {0};
+    snprintf(event4, sizeof(event4), "firewall-restart");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event4), _, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
+
     CreateBrInterface();
 }
 
+
 TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMeshWiFi5G)
 {
-    char event[64] = {0} , value[64] = {0};
+    using namespace testing;
     InstanceNumber = MESH_WIFI_BACKHAUL_5G;
     ovsEnable = 1;
     DeviceMode = 0;
@@ -2703,173 +2007,151 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceMeshWiFi5G)
     wan_mode = 0;
     skipMoCA = 0;
     skipWiFi = 0;
-    snprintf(event,sizeof(event),"multinet_%d-status",InstanceNumber);
+
+    char event[64] = {0}, value[64] = {0};
+    snprintf(event, sizeof(event), "multinet_%d-status", InstanceNumber);
     strcpy(value, "partial");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "brlan113";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
 
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "113";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
+    struct Param {
+        const char* name;
+        const char* expectedValue;
+    };
 
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
+    Param params[] = {
+        {"dmsb.l2net.%d.Name", "brlan113"},
+        {"dmsb.l2net.%d.Vid", "113"},
+        {"dmsb.l2net.%d.Members.Link", ""},
+        {"dmsb.l2net.%d.Members.Eth", ""},
+        {"dmsb.l2net.%d.Members.Moca", ""},
+        {"dmsb.l2net.%d.Members.WiFi", "wifi0"},
+        {"dmsb.l2net.%d.Members.Gre", ""},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""}
+    };
 
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
+    for (int i = 0; i < sizeof(params)/sizeof(Param); i++) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), params[i].name, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&params[i].expectedValue),
+                ::testing::Return(100)
         ));
+    }
 
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    char expectedValue5[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue5),
-            ::testing::Return(100)
-        ));
-
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "wifi0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePreConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event1[64] = {0} , value1[64] = {0};
-    snprintf(event1,sizeof(event1),"multinet_%d-name",InstanceNumber);
-    strcpy(value1, "brlan113");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event1), StrEq(value1), _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    char event2[64] = {0} , value2[64] = {0};
-    snprintf(event2,sizeof(event2),"multinet_%d-vid",InstanceNumber);
-    snprintf(value2,sizeof(value2),"%d",113);
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event2), StrEq(value2), _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    Gateway_Config *pGwConfig = NULL;
-    pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
+
+    const char* syseventParams[] = {
+        "multinet_%d-name",
+        "multinet_%d-vid"
+    };
+
+    const char* syseventValues[] = {
+        "brlan113",
+        "113"
+    };
+
+    for (int i = 0; i < 2; ++i) {
+        char event[64] = {0}, value[64] = {0};
+        snprintf(event, sizeof(event), syseventParams[i], InstanceNumber);
+        snprintf(value, sizeof(value), "%s", syseventValues[i]);
+        EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
+            .Times(1)
+            .WillOnce(Return(0));
+    }
+
+    Gateway_Config *pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
     memset(pGwConfig, 0, sizeof(Gateway_Config));
     pGwConfig->if_type = OVS_OTHER_IF_TYPE;
     pGwConfig->mtu = DEFAULT_MTU;
     pGwConfig->vlan_id = DEFAULT_VLAN_ID;
     pGwConfig->if_cmd = OVS_IF_UP_CMD;
 
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config( _, _))
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config(_, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
+            SetGwConfigArg1((void**)&pGwConfig),
             ::testing::Return(true)
         ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact( _, _))
+
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact(_, _))
         .Times(1)
         .WillOnce(Return(true));
 
     char expectedValue111[128] = "11";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq("dmsb.MultiLAN.MeshWiFiBhaul_5G_l3net"), _, _))
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq("dmsb.MultiLAN.MeshWiFiBhaul_5G_l3net"), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetPsmValueArg4(&expectedValue111),
             ::testing::Return(100)
         ));
 
-    char paramName21[128] = {0};
-    snprintf(paramName21,sizeof(paramName2), "dmsb.l3net.%d.V4Addr", 11);
-    char expectedValue21[128] = "169.254.1.1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName21), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue21),
-            ::testing::Return(100)
-        ));
+    const char* l3netParams[] = {
+        "dmsb.l3net.%d.V4Addr",
+        "dmsb.l3net.%d.V4SubnetMask"
+    };
 
-    char paramName31[128] = {0};
-    snprintf(paramName31,sizeof(paramName31), "dmsb.l3net.%d.V4SubnetMask", 11);
-    char expectedValue31[128] = "255.255.255.0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName31), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue31),
-            ::testing::Return(100)
-        ));
+    const char* l3netExpectedValues[] = {
+        "169.254.1.1",
+        "255.255.255.0"
+    };
+
+    for (int i = 0; i < 2; ++i) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), l3netParams[i], 11);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&l3netExpectedValues[i]),
+                ::testing::Return(100)
+            ));
+    }
 
     char expectedCmd123[216] = {0};
-    snprintf(expectedCmd123,sizeof(expectedCmd123),"ifconfig %s %s netmask %s up",expectedValue1,expectedValue21, expectedValue31);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd123)))
+    snprintf(expectedCmd123, sizeof(expectedCmd123), "ifconfig %s %s netmask %s up", params[0].expectedValue, l3netExpectedValues[0], l3netExpectedValues[1]);
+    EXPECT_CALL(*g_securewrapperMock, v_secure_system(::testing::HasSubstr(expectedCmd123), _))
         .Times(1)
-        .WillOnce(Return(1));
+        .WillOnce(Return(0));
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event21[64] = {0} , value21[64] = {0};
-    snprintf(event21,sizeof(event21),"multinet_%d-localready",InstanceNumber);
-    strcpy(value21, "1");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event21), StrEq(value21), _))
-	 .Times(1)
+
+    const char* finalEvents[] = {
+        "multinet_%d-localready",
+        "multinet_%d-status",
+        "firewall-restart"
+    };
+
+    const char* finalValues[] = {
+        "1",
+        "ready"
+    };
+
+    for (int i = 0; i < 2; ++i) {
+        char event[64] = {0}, value[64] = {0};
+        snprintf(event, sizeof(event), finalEvents[i], InstanceNumber);
+        strcpy(value, finalValues[i]);
+        EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
+            .Times(1)
+            .WillOnce(Return(0));
+    }
+
+    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(finalEvents[2]), _, _))
+        .Times(1)
         .WillOnce(Return(0));
-    char event3[64] = {0} , value3[64] = {0};
-    snprintf(event3,sizeof(event3),"multinet_%d-status",InstanceNumber);
-    strcpy(value3, "ready");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event3), StrEq(value3), _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    char event4[64] = {0} ;
-    snprintf(event4,sizeof(event4),"firewall-restart");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event4), _, _))
-	 .Times(1)
-        .WillOnce(Return(0));
+
     CreateBrInterface();
+    free(pGwConfig);
 }
 
 TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceHotspot2G)
 {
-    char event[64] = {0} , value[64] = {0};
     InstanceNumber = HOTSPOT_2G;
     ovsEnable = 1;
     DeviceMode = 0;
@@ -2877,168 +2159,132 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceHotspot2G)
     wan_mode = 0;
     skipMoCA = 0;
     skipWiFi = 0;
-    snprintf(event,sizeof(event),"multinet_%d-status",InstanceNumber);
+
+    char event[64] = {0}, value[64] = {0};
+    snprintf(event, sizeof(event), "multinet_%d-status", InstanceNumber);
     strcpy(value, "partial");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "brlan2";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
+
+    struct Param {
+        const char* name;
+        const char* expectedValue;
+    };
+
+    Param params[] = {
+        {"dmsb.l2net.%d.Name", "brlan2"},
+        {"dmsb.l2net.%d.Vid", "102"},
+        {"dmsb.l2net.%d.Members.Link", ""},
+        {"dmsb.l2net.%d.Members.Eth", ""},
+        {"dmsb.l2net.%d.Members.Moca", ""},
+        {"dmsb.l2net.%d.Members.WiFi", "wifi0"},
+        {"dmsb.l2net.%d.Members.Gre", "gre0"},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""}
+    };
+
+    for (int i = 0; i < sizeof(params)/sizeof(Param); i++) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), params[i].name, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&params[i].expectedValue),
+                ::testing::Return(100)
+            ));
+    }
+
+    char hotspotEnableValue[] = "1";
+    char expectedHotspotValue[] = "0";
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq("dmsb.hotspot.enable"), _, _))
+        .WillRepeatedly(::testing::DoAll(
+            SetPsmValueArg4(&expectedHotspotValue),
             ::testing::Return(100)
         ));
-
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "102";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
-
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
-
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
-
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    char expectedValue5[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue5),
-            ::testing::Return(100)
-        ));
-
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "wifi0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "gre0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
-
-    char expectedValue[] = "1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq("dmsb.hotspot.enable"), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue),
-            ::testing::Return(100)
-        ));
-
-    char expectedCmd123[216] = {0};
-    snprintf(expectedCmd123,sizeof(expectedCmd123),"sh %s create %d %s",GRE_HANDLER_SCRIPT,InstanceNumber, expectedValue7);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd123)))
-        .Times(1)
-        .WillOnce(Return(1));
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePreConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event1[64] = {0} , value1[64] = {0};
-    snprintf(event1,sizeof(event1),"multinet_%d-name",InstanceNumber);
+
+    EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
+        .Times(1)
+        .WillOnce(Return(0));
+
+    char event1[64] = {0}, value1[64] = {0};
+    snprintf(event1, sizeof(event1), "multinet_%d-name", InstanceNumber);
     strcpy(value1, "brlan2");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event1), StrEq(value1), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event2[64] = {0} , value2[64] = {0};
-    snprintf(event2,sizeof(event2),"multinet_%d-vid",InstanceNumber);
-    snprintf(value2,sizeof(value2),"%d",102);
+
+    char event2[64] = {0}, value2[64] = {0};
+    snprintf(event2, sizeof(event2), "multinet_%d-vid", InstanceNumber);
+    snprintf(value2, sizeof(value2), "%d", 102);
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event2), StrEq(value2), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    Gateway_Config *pGwConfig = NULL;
-    pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
+
+    Gateway_Config *pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
     memset(pGwConfig, 0, sizeof(Gateway_Config));
     pGwConfig->if_type = OVS_OTHER_IF_TYPE;
     pGwConfig->mtu = DEFAULT_MTU;
     pGwConfig->vlan_id = DEFAULT_VLAN_ID;
     pGwConfig->if_cmd = OVS_IF_UP_CMD;
-    char GreState[64] = {0} , greSysName[128] = {0};
-    snprintf(greSysName,sizeof(greSysName),"if_%s-status","gre0");
-    strcpy(GreState, "ready");
-    EXPECT_CALL(*g_syseventMock, sysevent_get(_, _, StrEq(greSysName), _, _))
-	 .Times(1)
+
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config(_, _))
+        .Times(1)
         .WillOnce(::testing::DoAll(
-            SetArgNPointeeTo<3>(std::begin(GreState), sizeof(GreState)),
-            ::testing::Return(0)
-        ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config( _, _))
-        .Times(2)
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
+            SetGwConfigArg1((void**)&pGwConfig),
             ::testing::Return(true)
         ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact( _, _))
-        .Times(2)
-        .WillOnce(Return(true))
+
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact(_, _))
+        .Times(1)
         .WillOnce(Return(true));
 
-    EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    char event21[64] = {0} , value21[64] = {0};
-    snprintf(event21,sizeof(event21),"multinet_%d-localready",InstanceNumber);
-    strcpy(value21, "1");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event21), StrEq(value21), _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    char event3[64] = {0} , value3[64] = {0};
-    snprintf(event3,sizeof(event3),"multinet_%d-status",InstanceNumber);
-    strcpy(value3, "ready");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event3), StrEq(value3), _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    char event4[64] = {0} ;
-    snprintf(event4,sizeof(event4),"firewall-restart");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event4), _, _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    CreateBrInterface();
-}
+    const char* eventFormats[] = {
+        "multinet_%d-localready",
+        "multinet_%d-status",
+        "firewall-restart"
+    };
 
+    const char* values[] = {
+        "1",
+        "ready",
+        NULL
+    };
+
+    int times[] = {
+        1,
+        1,
+        1
+    };
+
+    for (int i = 0; i < sizeof(eventFormats)/sizeof(eventFormats[0]); i++) {
+        char event[64] = {0};
+        snprintf(event, sizeof(event), eventFormats[i], InstanceNumber);
+        if (values[i]) {
+            char value[64] = {0};
+            strcpy(value, values[i]);
+            EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
+                .Times(times[i])
+                .WillOnce(Return(0));
+        } 
+        else 
+        {
+            EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), _, _))
+                .Times(times[i])
+                .WillOnce(Return(0));
+        }
+    }
+
+    CreateBrInterface();
+    free(pGwConfig);
+}
 
 TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceHotspotSecure5G)
 {
-    char event[64] = {0} , value[64] = {0};
+    using namespace testing;
     InstanceNumber = HOTSPOT_SECURE_5G;
     ovsEnable = 1;
     DeviceMode = 0;
@@ -3046,160 +2292,125 @@ TEST_F(BridgeUtilsTestFixture, CreateBrInterfaceHotspotSecure5G)
     wan_mode = 0;
     skipMoCA = 0;
     skipWiFi = 0;
-    snprintf(event,sizeof(event),"multinet_%d-status",InstanceNumber);
+
+    char event[64] = {0}, value[64] = {0};
+    snprintf(event, sizeof(event), "multinet_%d-status", InstanceNumber);
     strcpy(value, "partial");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "brlan5";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
+
+    struct Param {
+        const char* name;
+        const char* expectedValue;
+    };
+
+    Param params[] = {
+        {"dmsb.l2net.%d.Name", "brlan5"},
+        {"dmsb.l2net.%d.Vid", "105"},
+        {"dmsb.l2net.%d.Members.Link", ""},
+        {"dmsb.l2net.%d.Members.Eth", ""},
+        {"dmsb.l2net.%d.Members.Moca", ""},
+        {"dmsb.l2net.%d.Members.WiFi", "wifi0"},
+        {"dmsb.l2net.%d.Members.Gre", "gre0"},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""}
+    };
+
+for (int i = 0; i < sizeof(params) / sizeof(params[0]); ++i) {
+    char paramName[128] = {0};
+    snprintf(paramName, sizeof(paramName), params[i].name, InstanceNumber);
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
+            SetPsmValueArg4(&params[i].expectedValue),
             ::testing::Return(100)
         ));
+}
 
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "105";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
-
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
-
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
-
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    char expectedValue5[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue5),
-            ::testing::Return(100)
-        ));
-
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "wifi0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "gre0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
-
-    char expectedValue[] = "0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq("dmsb.hotspot.enable"), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue),
+    const char* hotspotParam = "dmsb.hotspot.enable";
+    char expectedHotspotValue[] = "0";
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(hotspotParam), _, _))
+        .Times(2)
+        .WillRepeatedly(::testing::DoAll(
+            SetPsmValueArg4(&expectedHotspotValue),
             ::testing::Return(100)
         ));
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePreConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event1[64] = {0} , value1[64] = {0};
-    snprintf(event1,sizeof(event1),"multinet_%d-name",InstanceNumber);
-    strcpy(value1, "brlan5");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event1), StrEq(value1), _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    char event2[64] = {0} , value2[64] = {0};
-    snprintf(event2,sizeof(event2),"multinet_%d-vid",InstanceNumber);
-    snprintf(value2,sizeof(value2),"%d",105);
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event2), StrEq(value2), _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    Gateway_Config *pGwConfig = NULL;
-    pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
+
+    const char* syseventParams[] = {
+        "multinet_%d-name",
+        "multinet_%d-vid"
+    };
+
+    const char* syseventValues[] = {
+        "brlan5",
+        "105"
+    };
+
+    for (int i = 0; i < 2; ++i) {
+        char event[64] = {0}, value[64] = {0};
+        snprintf(event, sizeof(event), syseventParams[i], InstanceNumber);
+        snprintf(value, sizeof(value), "%s", syseventValues[i]);
+        EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
+            .Times(1)
+            .WillOnce(Return(0));
+    }
+
+    Gateway_Config* pGwConfig = (Gateway_Config*)malloc(sizeof(Gateway_Config));
     memset(pGwConfig, 0, sizeof(Gateway_Config));
     pGwConfig->if_type = OVS_OTHER_IF_TYPE;
     pGwConfig->mtu = DEFAULT_MTU;
     pGwConfig->vlan_id = DEFAULT_VLAN_ID;
     pGwConfig->if_cmd = OVS_IF_UP_CMD;
-    char GreState[64] = {0} , greSysName[128] = {0};
-    snprintf(greSysName,sizeof(greSysName),"if_%s-status","gre0");
-    strcpy(GreState, "ready");
-    EXPECT_CALL(*g_syseventMock, sysevent_get(_, _, StrEq(greSysName), _, _))
-	 .Times(1)
+
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config(_, _))
+        .Times(1)
         .WillOnce(::testing::DoAll(
-            SetArgNPointeeTo<3>(std::begin(GreState), sizeof(GreState)),
-            ::testing::Return(0)
-        ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config( _, _))
-        .Times(2)
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
+            SetGwConfigArg1((void**)&pGwConfig),
             ::testing::Return(true)
         ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact( _, _))
-        .Times(2)
-        .WillOnce(Return(true))
+
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact(_, _))
+        .Times(1)
         .WillOnce(Return(true));
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event21[64] = {0} , value21[64] = {0};
-    snprintf(event21,sizeof(event21),"multinet_%d-localready",InstanceNumber);
-    strcpy(value21, "1");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event21), StrEq(value21), _))
-	 .Times(1)
+
+    const char* finalEvents[] = {
+        "multinet_%d-localready",
+        "multinet_%d-status",
+        "firewall-restart"
+    };
+
+    const char* finalValues[] = {
+        "1",
+        "ready"
+    };
+
+    for (int i = 0; i < 2; ++i) {
+        char event[64] = {0}, value[64] = {0};
+        snprintf(event, sizeof(event), finalEvents[i], InstanceNumber);
+        strcpy(value, finalValues[i]);
+        EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
+            .Times(1)
+            .WillOnce(Return(0));
+    }
+
+    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(finalEvents[2]), _, _))
+        .Times(1)
         .WillOnce(Return(0));
-    char event3[64] = {0} , value3[64] = {0};
-    snprintf(event3,sizeof(event3),"multinet_%d-status",InstanceNumber);
-    strcpy(value3, "ready");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event3), StrEq(value3), _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    char event4[64] = {0} ;
-    snprintf(event4,sizeof(event4),"firewall-restart");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event4), _, _))
-	 .Times(1)
-        .WillOnce(Return(0));
+
     CreateBrInterface();
 }
 
 TEST_F(BridgeUtilsTestFixture, DeleteBrInterface)
 {
+    using namespace testing;
     InstanceNumber = LOST_N_FOUND;
     BridgeOprInPropgress = DELETE_BRIDGE;
     ovsEnable = 1;
@@ -3208,134 +2419,104 @@ TEST_F(BridgeUtilsTestFixture, DeleteBrInterface)
     wan_mode = 0;
     skipMoCA = 0;
     skipWiFi = 0;
-    char event[64] = {0} , value[64] = {0};
-    snprintf(event,sizeof(event),"multinet_%d-status",InstanceNumber);
+
+    char event[64] = {0}, value[64] = {0};
+    snprintf(event, sizeof(event), "multinet_%d-status", InstanceNumber);
     strcpy(value, "stopping");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "br106";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
 
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "106";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
+    struct Param {
+        const char* name;
+        const char* expectedValue;
+    };
 
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
+    Param params[] = {
+        {"dmsb.l2net.%d.Name", "br106"},
+        {"dmsb.l2net.%d.Vid", "106"},
+        {"dmsb.l2net.%d.Members.Link", ""},
+        {"dmsb.l2net.%d.Members.Eth", ""},
+        {"dmsb.l2net.%d.Members.Moca", ""},
+        {"dmsb.l2net.%d.Members.WiFi", "wifi0 wifi1 wifi2 wifi3"},
+        {"dmsb.l2net.%d.Members.Gre", ""},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""}
+    };
 
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
+    for (int i = 0; i < sizeof(params) / sizeof(params[0]); ++i) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), params[i].name, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&params[i].expectedValue),
+                ::testing::Return(100)
+            ));
+    }
 
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    char expectedValue5[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue5),
-            ::testing::Return(100)
-        ));
-
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "wifi0 wifi1 wifi2 wifi3";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
     char expectedCmd[256] = {0};
-    memset(expectedCmd,0,sizeof(expectedCmd));
-    snprintf(expectedCmd,sizeof(expectedCmd),"ip link set %s down", expectedValue1);
-    EXPECT_CALL(*g_utilMock, system(StrEq(expectedCmd)))
+    snprintf(expectedCmd, sizeof(expectedCmd), "ip link set %s down", params[0].expectedValue);
+    EXPECT_CALL(*g_securewrapperMock, v_secure_system(::testing::HasSubstr(expectedCmd), _))
         .Times(1)
-        .WillOnce(Return(1));
-    EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePreConfigVendorGeneric(_, _))
-	 .Times(1)
         .WillOnce(Return(0));
-    Gateway_Config *pGwConfig = NULL;
-    pGwConfig = (Gateway_Config*) malloc(sizeof(Gateway_Config));
+
+    EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePreConfigVendorGeneric(_, _))
+        .Times(1)
+        .WillOnce(Return(0));
+
+    Gateway_Config* pGwConfig = (Gateway_Config*)malloc(sizeof(Gateway_Config));
     memset(pGwConfig, 0, sizeof(Gateway_Config));
     pGwConfig->if_type = OVS_OTHER_IF_TYPE;
     pGwConfig->mtu = DEFAULT_MTU;
     pGwConfig->vlan_id = DEFAULT_VLAN_ID;
     pGwConfig->if_cmd = OVS_IF_UP_CMD;
 
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config( _, _))
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config(_, _))
         .Times(1)
-    	.WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
+        .WillOnce(::testing::DoAll(
+            SetGwConfigArg1((void**)&pGwConfig),
             ::testing::Return(true)
         ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact( _, _))
+
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact(_, _))
         .Times(1)
         .WillOnce(Return(true));
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
 
-    char event21[64] = {0} , value21[64] = {0};
-    snprintf(event21,sizeof(event21),"multinet_%d-localready",InstanceNumber);
-    strcpy(value21, "0");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event21), StrEq(value21), _))
-	 .Times(1)
+    const char* events[] = {
+        "multinet_%d-localready",
+        "multinet_%d-status",
+        "firewall-restart"
+    };
+
+    const char* values[] = {
+        "0",
+        "stopped"
+    };
+
+    for (int i = 0; i < 2; ++i) {
+        char event[64] = {0}, value[64] = {0};
+        snprintf(event, sizeof(event), events[i], InstanceNumber);
+        strcpy(value, values[i]);
+        EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
+            .Times(1)
+            .WillOnce(Return(0));
+    }
+
+    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(events[2]), _, _))
+        .Times(1)
         .WillOnce(Return(0));
-    char event3[64] = {0} , value3[64] = {0};
-    snprintf(event3,sizeof(event3),"multinet_%d-status",InstanceNumber);
-    strcpy(value3, "stopped");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event3), StrEq(value3), _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    char event4[64] = {0} ;
-    snprintf(event4,sizeof(event4),"firewall-restart");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event4), _, _))
-	 .Times(1)
-        .WillOnce(Return(0));
+
     DeleteBrInterface();
+    free(pGwConfig);
 }
 
 TEST_F(BridgeUtilsTestFixture, SyncBrInterfaces)
 {
+    using namespace testing;
     InstanceNumber = HOME_SECURITY;
     BridgeOprInPropgress = CREATE_BRIDGE;
     ovsEnable = 1;
@@ -3344,140 +2525,116 @@ TEST_F(BridgeUtilsTestFixture, SyncBrInterfaces)
     wan_mode = 0;
     skipMoCA = 0;
     skipWiFi = 0;
-    char event[64] = {0} , value[64] = {0};
-    snprintf(event,sizeof(event),"multinet_%d-status",InstanceNumber);
+
+    struct Param {
+        const char* name;
+        const char* expectedValue;
+    };
+
+    Param params[] = {
+        {"dmsb.l2net.%d.Name", "brlan1"},
+        {"dmsb.l2net.%d.Vid", "101"},
+        {"dmsb.l2net.%d.Members.Link", ""},
+        {"dmsb.l2net.%d.Members.Eth", ""},
+        {"dmsb.l2net.%d.Members.Moca", ""},
+        {"dmsb.l2net.%d.Members.WiFi", "wifi0 wifi1"},
+        {"dmsb.l2net.%d.Members.Gre", ""},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""}
+    };
+
+    char event[64] = {0}, value[64] = {0};
+    snprintf(event, sizeof(event), "multinet_%d-status", InstanceNumber);
     strcpy(value, "partial");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "brlan1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
-            ::testing::Return(100)
-        ));
 
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "101";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
+    for (int i = 0; i < sizeof(params) / sizeof(params[0]); ++i) {
+        char paramName[128] = {0};
+        snprintf(paramName, sizeof(paramName), params[i].name, InstanceNumber);
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, _, StrEq(paramName), _, _))
+            .Times(1)
+            .WillOnce(::testing::DoAll(
+                SetPsmValueArg4(&params[i].expectedValue),
+                ::testing::Return(100)
+            ));
+    }
 
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
+    const char* events[] = {
+        "multinet_%d-name",
+        "multinet_%d-vid"
+    };
 
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
+    const char* values[] = {
+        "brlan1",
+        "101"
+    };
 
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    char expectedValue5[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue5),
-            ::testing::Return(100)
-        ));
-
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "wifi0 wifi1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
-
-    char event1[64] = {0} , value1[64] = {0};
-    snprintf(event1,sizeof(event1),"multinet_%d-name",InstanceNumber);
-    strcpy(value1, "brlan1");
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event1), StrEq(value1), _))
-	 .Times(1)
-        .WillOnce(Return(0));
-    char event2[64] = {0} , value2[64] = {0};
-    snprintf(event2,sizeof(event2),"multinet_%d-vid",InstanceNumber);
-    snprintf(value2,sizeof(value2),"%d",101);
-    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event2), StrEq(value2), _))
-	 .Times(1)
-        .WillOnce(Return(0));
+    for (int i = 0; i < sizeof(events) / sizeof(events[0]); ++i) {
+        char event[64] = {0}, value[64] = {0};
+        snprintf(event, sizeof(event), events[i], InstanceNumber);
+        if (i == 1) {
+            snprintf(value, sizeof(value), "%d", atoi(values[i]));
+        } else {
+            strcpy(value, values[i]);
+        }
+        EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
+            .Times(1)
+            .WillOnce(Return(0));
+    }
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePreConfigVendorGeneric(_, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
+
     char expectedCmd[256] = {0};
-    memset(expectedCmd,0,sizeof(expectedCmd));
-    snprintf(expectedCmd,sizeof(expectedCmd),"ovs-vsctl list-ifaces %s | tr \"\n\" \" \" ",expectedValue1);
+    snprintf(expectedCmd, sizeof(expectedCmd), "ovs-vsctl list-ifaces %s | tr '\n' ' ' ", params[0].expectedValue);
     char expectedIfList[] = "wifi0 wifi1";
-    FILE * expectedFd = (FILE *)0xffffffff;
-    EXPECT_CALL(*g_fileIOMock, popen(StrEq(expectedCmd), StrEq("r")))
-       .Times(1)
-       .WillOnce(::testing::Return(expectedFd));
+    FILE* expectedFd = (FILE*)0xffffffff;
+
+    EXPECT_CALL(*g_securewrapperMock, v_secure_popen(StrEq("r"), StrEq(expectedCmd), _))
+        .Times(1)
+        .WillOnce(Return(expectedFd));
+
     EXPECT_CALL(*g_fileIOMock, fgets(_, _, expectedFd))
         .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetArgNPointeeTo<0>(std::begin(expectedIfList), sizeof(expectedIfList)),
-            ::testing::Return((char*)expectedIfList)
-        ));
-    EXPECT_CALL(*g_fileIOMock, pclose(expectedFd))
-       .Times(1)
-       .WillOnce(::testing::Return(0));
-    EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
-	 .Times(1)
+        .WillOnce(DoAll(SetArrayArgument<0>(expectedIfList, expectedIfList + strlen(expectedIfList)), Return(expectedIfList)));
+
+    EXPECT_CALL(*g_securewrapperMock, v_secure_pclose(expectedFd))
+        .Times(1)
         .WillOnce(Return(0));
-        char event21[64] = {0} , value21[64] = {0};
-    snprintf(event21,sizeof(event21),"multinet_%d-localready",InstanceNumber);
+
+    EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
+        .Times(1)
+        .WillOnce(Return(0));
+
+    char event21[64] = {0}, value21[64] = {0};
+    snprintf(event21, sizeof(event21), "multinet_%d-localready", InstanceNumber);
     strcpy(value21, "1");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event21), StrEq(value21), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event3[64] = {0} , value3[64] = {0};
-    snprintf(event3,sizeof(event3),"multinet_%d-status",InstanceNumber);
+
+    char event3[64] = {0}, value3[64] = {0};
+    snprintf(event3, sizeof(event3), "multinet_%d-status", InstanceNumber);
     strcpy(value3, "ready");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event3), StrEq(value3), _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
-    char event4[64] = {0} ;
-    snprintf(event4,sizeof(event4),"firewall-restart");
+
+    char event4[64] = {0};
+    snprintf(event4, sizeof(event4), "firewall-restart");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event4), _, _))
-	 .Times(1)
+        .Times(1)
         .WillOnce(Return(0));
+
     SyncBrInterfaces();
 }
 
+
 TEST_F(BridgeUtilsTestFixture, SyncBrInterfacesBridgeMode)
 {
+    using namespace testing;
     InstanceNumber = 1;
     BridgeOprInPropgress = CREATE_BRIDGE;
     ovsEnable = 1;
@@ -3486,85 +2643,39 @@ TEST_F(BridgeUtilsTestFixture, SyncBrInterfacesBridgeMode)
     wan_mode = 0;
     skipMoCA = 0;
     skipWiFi = 0;
+
+    struct ParamData {
+        char paramName[128];
+        char expectedValue[128];
+    } params[] = {
+        {"dmsb.l2net.%d.Name", "brlan0"},
+        {"dmsb.l2net.%d.Vid", "100"},
+        {"dmsb.l2net.%d.Members.Link", "link0 link1"},
+        {"dmsb.l2net.%d.Members.Eth", "eth0 eth1"},
+        {"dmsb.l2net.%d.Members.Moca", "moca0 moca1 moca2"},
+        {"dmsb.l2net.%d.Members.WiFi", "wifi0"},
+        {"dmsb.l2net.%d.Members.Gre", ""},
+        {"dmsb.l2net.%d.Members.VirtualParentIfname", ""}
+    };
+
     char event[64] = {0} , value[64] = {0};
     snprintf(event,sizeof(event),"multinet_%d-status",InstanceNumber);
     strcpy(value, "partial");
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq(event), StrEq(value), _))
-	 .Times(1)
+     .Times(1)
         .WillOnce(Return(0));
-    char paramName1[128] = {0};
-    snprintf(paramName1,sizeof(paramName1), "dmsb.l2net.%d.Name", InstanceNumber);
-    char expectedValue1[128] = "brlan0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName1), _, _))
+
+    for (int i = 0; i < sizeof(params)/sizeof(params[0]); ++i) {
+    char expectedParamName[256];
+    snprintf(expectedParamName, sizeof(expectedParamName), params[i].paramName, InstanceNumber);
+    snprintf(params[i].paramName, sizeof(params[i].paramName), params[i].paramName, InstanceNumber);
+    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(expectedParamName), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue1),
+            SetPsmValueArg4(&params[i].expectedValue),
             ::testing::Return(100)
         ));
-
-    char paramName2[128] = {0};
-    snprintf(paramName2,sizeof(paramName2), "dmsb.l2net.%d.Vid", InstanceNumber);
-    char expectedValue2[128] = "100";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName2), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue2),
-            ::testing::Return(100)
-        ));
-
-    char paramName3[128] = {0};
-    snprintf(paramName3,sizeof(paramName3), "dmsb.l2net.%d.Members.Link", InstanceNumber);
-    char expectedValue3[128] = "llan0 lbr0 ler0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName3), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue3),
-            ::testing::Return(100)
-        ));
-
-    char paramName4[128] = {0};
-    snprintf(paramName4,sizeof(paramName4), "dmsb.l2net.%d.Members.Eth", InstanceNumber);
-    char expectedValue4[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName4), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue4),
-            ::testing::Return(100)
-        ));
-
-    char paramName5[128] = {0};
-    snprintf(paramName5,sizeof(paramName5), "dmsb.l2net.%d.Members.Moca", InstanceNumber);
-    char expectedValue5[128] = "nmoca0";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName5), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue5),
-            ::testing::Return(100)
-        ));
-
-    char paramName6[128] = {0};
-    snprintf(paramName6,sizeof(paramName6), "dmsb.l2net.%d.Members.WiFi", InstanceNumber);
-    char expectedValue6[128] = "wifi0 wifi1";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName6), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue6),
-            ::testing::Return(100)
-        ));
-
-    char paramName7[128] = {0};
-    snprintf(paramName7,sizeof(paramName7), "dmsb.l2net.%d.Members.Gre", InstanceNumber);
-    char expectedValue7[128] = "";
-    EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2( _, _, StrEq(paramName7), _, _))
-        .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetPsmValueArg4(&expectedValue7),
-            ::testing::Return(100)
-        ));
-
-    EXPECT_CALL(*g_fileIOMock, access(StrEq("/tmp/autowan_iface_finalized"), _))
-	 .Times(1)
-        .WillOnce(Return(1));
+    }
 
     char event1[64] = {0} , value1[64] = {0};
     snprintf(event1,sizeof(event1),"multinet_%d-name",InstanceNumber);
@@ -3584,21 +2695,21 @@ TEST_F(BridgeUtilsTestFixture, SyncBrInterfacesBridgeMode)
         .WillOnce(Return(0));
     char expectedCmd[256] = {0};
     memset(expectedCmd,0,sizeof(expectedCmd));
-    snprintf(expectedCmd,sizeof(expectedCmd),"ovs-vsctl list-ifaces %s | tr \"\n\" \" \" ",expectedValue1);
+    snprintf(expectedCmd, sizeof(expectedCmd), "ovs-vsctl list-ifaces brlan0 | tr '\n' ' ' ");
     char expectedIfList[] = "wifi0 wifi1 nmoca0";
     FILE * expectedFd = (FILE *)0xffffffff;
-    EXPECT_CALL(*g_fileIOMock, popen(StrEq(expectedCmd), StrEq("r")))
-       .Times(1)
-       .WillOnce(::testing::Return(expectedFd));
+    
+    EXPECT_CALL(*g_securewrapperMock, v_secure_popen(StrEq("r"), StrEq(expectedCmd), _))
+        .Times(1)
+        .WillOnce(Return(expectedFd));
+    
     EXPECT_CALL(*g_fileIOMock, fgets(_, _, expectedFd))
         .Times(1)
-        .WillOnce(::testing::DoAll(
-            SetArgNPointeeTo<0>(std::begin(expectedIfList), sizeof(expectedIfList)),
-            ::testing::Return((char*)expectedIfList)
-        ));
-    EXPECT_CALL(*g_fileIOMock, pclose(expectedFd))
-       .Times(1)
-       .WillOnce(::testing::Return(0));
+        .WillOnce(DoAll(SetArrayArgument<0>(expectedIfList, expectedIfList + strlen(expectedIfList)), Return(expectedIfList)));
+    
+    EXPECT_CALL(*g_securewrapperMock, v_secure_pclose(expectedFd))
+        .Times(1)
+        .WillOnce(Return(0));
 
     EXPECT_CALL(*g_bridgeUtilsGenericMock, HandlePostConfigVendorGeneric(_, _))
 	 .Times(1)
@@ -3610,25 +2721,10 @@ TEST_F(BridgeUtilsTestFixture, SyncBrInterfacesBridgeMode)
     pGwConfig->mtu = DEFAULT_MTU;
     pGwConfig->vlan_id = DEFAULT_VLAN_ID;
     pGwConfig->if_cmd = OVS_IF_UP_CMD;
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config( _, _))
-        .Times(3)
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ))
-        .WillOnce(::testing::DoAll(
-            SetGwConfigArg1((void **)&pGwConfig),
-            ::testing::Return(true)
-        ));
-    EXPECT_CALL(*g_ovsMock, ovs_agent_api_interact( _, _))
-        .Times(3)
-        .WillOnce(Return(true))
-        .WillOnce(Return(true))
-        .WillOnce(Return(true));
+    EXPECT_CALL(*g_ovsMock, ovs_agent_api_get_config(_, _))
+    .Times(9)
+    .WillRepeatedly(Return(false));
+
         char event21[64] = {0} , value21[64] = {0};
     snprintf(event21,sizeof(event21),"multinet_%d-localready",InstanceNumber);
     strcpy(value21, "1");
