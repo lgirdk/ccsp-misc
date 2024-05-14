@@ -68,13 +68,11 @@ static int get_dhcpv4_opt_list (dhcp_params * params, dhcp_opt_list ** req_opt_l
     UNUSED_VARIABLE(params);
 #endif
 
-#ifndef XB10_ONLY_SUPPORT
     if (platform_hal_GetDhcpv4_Options(req_opt_list, send_opt_list) == FAILURE)
     {
         DBG_PRINT("%s %d: failed to get option list from platform hal\n", __FUNCTION__, __LINE__);
         return FAILURE;
     }
-#endif
 
     return SUCCESS;
 
