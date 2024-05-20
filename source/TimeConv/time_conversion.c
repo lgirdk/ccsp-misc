@@ -84,12 +84,14 @@ int getTimeOffsetFromSysevent(char *name, int version)
     char a[100];
     FILE *fp;
     int off = -1;
-    fp = v_secure_popen("r","sysevent get %s",name);
+    char cmd[100] = {0};
+    snprintf(cmd, sizeof(cmd), "sysevent get %s",name);
+    fp = popen(cmd,"r");
     if(fp != NULL)
     {
         fgets(a,sizeof(a),fp);
         a[strlen(a) - 1] = '\0';
-        v_secure_pclose(fp);
+        pclose(fp);
         if(a[0] != '\0')
         {
             if(a[0] != '@')
