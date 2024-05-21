@@ -17,6 +17,8 @@
 # limitations under the License.
 ##########################################################################
 
+SUBDIRS = bridge_utils
+
 AM_CFLAGS =
 
 AM_CXXFLAGS = -std=c++11

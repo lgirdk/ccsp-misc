@@ -35,6 +35,9 @@
 #include "mocks/mock_ovs.h"
 #include <mocks/mock_messagebus.h>
 #include "mocks/mock_bridge_util_generic.h"
+#include <mocks/mock_cap.h>
+#include <mocks/mock_securewrapper.h>
+#include <mocks/mock_ansc_memory.h>
 
 using namespace std;
 using std::experimental::filesystem::exists;
@@ -66,6 +69,9 @@ MessageBusMock * g_messagebusMock = NULL;
 UtilMock * g_utilMock = NULL;
 OvsMock * g_ovsMock = NULL;
 BridgeUtilsGenericMock * g_bridgeUtilsGenericMock = NULL;
+SecureWrapperMock * g_securewrapperMock = NULL;
+CapMock * g_capMock                     = NULL;
+AnscMemoryMock * g_anscMemoryMock       = NULL;
 
 class BridgeUtilsTestFixture : public ::testing::Test {
     protected:
@@ -79,6 +85,9 @@ class BridgeUtilsTestFixture : public ::testing::Test {
         UtilMock  mockedUtil;
         OvsMock mockedOvs;
 	BridgeUtilsGenericMock mockedGeneric;
+        SecureWrapperMock mockedsecurewrapper;
+        CapMock mockedcapMock;
+        AnscMemoryMock mockedanscMemoryMock;
 
         BridgeUtilsTestFixture()
         {
@@ -92,6 +101,9 @@ class BridgeUtilsTestFixture : public ::testing::Test {
             g_utilMock = &mockedUtil;
             g_ovsMock = &mockedOvs;
 	    g_bridgeUtilsGenericMock = &mockedGeneric;
+            g_securewrapperMock      = &mockedsecurewrapper;
+            g_capMock                = &mockedcapMock;
+	    g_anscMemoryMock         = &mockedanscMemoryMock;
         }
 
         virtual ~BridgeUtilsTestFixture()
@@ -106,6 +118,9 @@ class BridgeUtilsTestFixture : public ::testing::Test {
             g_utilMock = NULL;
             g_ovsMock = NULL;
 	    g_bridgeUtilsGenericMock = NULL;
+            g_securewrapperMock    = NULL;
+            g_capMock              = NULL ;
+	    g_anscMemoryMock        = NULL ;
         }
         virtual void SetUp()
         {

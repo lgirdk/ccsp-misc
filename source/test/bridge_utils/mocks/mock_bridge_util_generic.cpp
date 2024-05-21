@@ -40,7 +40,7 @@ extern "C" int HandlePostConfigVendorGeneric(void *bridgeInfo,int InstanceNumber
     }
     return g_bridgeUtilsGenericMock->HandlePostConfigVendorGeneric(bridgeInfo, InstanceNumber);
 }
-/*
+
 extern "C" char * getVendorIfaces()
 {
     if (!g_bridgeUtilsGenericMock)
@@ -49,4 +49,3 @@ extern "C" char * getVendorIfaces()
     }
     return g_bridgeUtilsGenericMock->getVendorIfaces();
 }
-*/

@@ -17,26 +17,37 @@
 * limitations under the License.
 */
 
-#ifndef MOCK_BRIDGEUTILS_GENERIC_H
-#define MOCK_BRIDGEUTILS_GENERIC_H
+#ifndef MOCK_OVS_H
+#define MOCK_OVS_H
 
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+extern "C"
+{
+#include "OvsAgentApi.h"
+}
 
-class GenericInterface {
+class OvsInterface {
 public:
-	virtual ~GenericInterface() {}
-	virtual int HandlePreConfigVendorGeneric(void *,int ) = 0;
-	virtual int HandlePostConfigVendorGeneric(void *,int ) = 0;
+	virtual ~OvsInterface() {}
+	virtual bool ovs_agent_api_get_config(OVS_TABLE , void ** ) = 0;
+	virtual bool ovs_agent_api_interact(ovs_interact_request * , ovs_interact_cb ) = 0;
+        virtual bool ovs_agent_api_deinit(void) = 0;
+	virtual bool ovs_agent_api_init(OVS_COMPONENT_ID) = 0;
 };
 
-class BridgeUtilsGenericMock: public GenericInterface {
+class OvsMock: public OvsInterface {
 public:
-	virtual ~BridgeUtilsGenericMock() {}
-	MOCK_METHOD2(HandlePreConfigVendorGeneric, int(void *, int));
-	MOCK_METHOD2(HandlePostConfigVendorGeneric, int(void *, int));
+	virtual ~OvsMock() {}
+	MOCK_METHOD2(ovs_agent_api_get_config, bool(OVS_TABLE , void ** ));
+	MOCK_METHOD2(ovs_agent_api_interact, bool(ovs_interact_request * , ovs_interact_cb ));
+        MOCK_METHOD0(ovs_agent_api_deinit, bool(void));
+        MOCK_METHOD1(ovs_agent_api_init, bool(OVS_COMPONENT_ID));
 };
 
 #endif
+
+
+
 

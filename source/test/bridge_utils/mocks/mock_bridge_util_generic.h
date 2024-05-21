@@ -17,26 +17,28 @@
 * limitations under the License.
 */
 
-#include "mocks/mock_ovs.h"
+#ifndef MOCK_BRIDGEUTILS_GENERIC_H
+#define MOCK_BRIDGEUTILS_GENERIC_H
 
-using namespace std;
 
-extern OvsMock * g_ovsMock;
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
-extern "C" bool ovs_agent_api_get_config(OVS_TABLE table, void ** ppConfig)
-{
-    if (!g_ovsMock)
-    {
-        return false;
-    }
-    return g_ovsMock->ovs_agent_api_get_config(table, ppConfig);
-}
+class GenericInterface {
+public:
+	virtual ~GenericInterface() {}
+	virtual int HandlePreConfigVendorGeneric(void *,int ) = 0;
+	virtual int HandlePostConfigVendorGeneric(void *,int ) = 0;
+        virtual char* getVendorIfaces() = 0;
+};
 
-extern "C" bool ovs_agent_api_interact(ovs_interact_request * request, ovs_interact_cb callback)
-{
-    if (!g_ovsMock)
-    {
-        return false;
-    }
-    return g_ovsMock->ovs_agent_api_interact(request, callback);
-}
+class BridgeUtilsGenericMock: public GenericInterface {
+public:
+	virtual ~BridgeUtilsGenericMock() {}
+	MOCK_METHOD2(HandlePreConfigVendorGeneric, int(void *, int));
+	MOCK_METHOD2(HandlePostConfigVendorGeneric, int(void *, int));
+        MOCK_METHOD0(getVendorIfaces, char *());
+};
+
+#endif
+

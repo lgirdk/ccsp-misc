@@ -40,12 +40,16 @@ bridgeUtils_gtest_bin_CPPFLAGS = -I$(PKG_CONFIG_SYSROOT_DIR)$(includedir)/gtest 
 
 bridgeUtils_gtest_bin_SOURCES = bridgeUtilsTest.cpp \
                                 gtest_main.cpp \
-                                ../bridge_utils_bin/bridge_util.c \
-                                ../bridge_utils_bin/bridge_creation.c \
+                                $(top_srcdir)/source/bridge_utils/bridge_utils_bin/bridge_util.c \
+                                $(top_srcdir)/source/bridge_utils/bridge_utils_bin/bridge_creation.c \
                                 mocks/mock_ovs.cpp \
                                 mocks/mock_bridge_util_generic.cpp
 
-bridgeUtils_gtest_bin_LDFLAGS = -lgtest -lgmock -lgcov -lrt -lprivilege -lccsp_common -lbridge_utils -lsecure_wrapper -lmock_fd -lmock_util -lmock_sysevent -lmock_syscfg -lmock_socket -lmock_psm -lmock_messagebus -lmock_file_io 
+bridgeUtils_gtest_bin_LDFLAGS = -lgtest -lgmock -lgcov -lrt -lmock_fd -lmock_util -lmock_sysevent -lmock_syscfg -lmock_socket -lmock_psm -lmock_file_io -lmock_secure_wrapper -lmock_privilege -lmock_ccsp_common
+
+AM_CFLAGS += -fprofile-arcs -ftest-coverage
+AM_CXXFLAGS += -fprofile-arcs -ftest-coverage
+bridgeUtils_gtest_bin_LDFLAGS += --coverage
 
 if CORE_NET_LIB_FEATURE_SUPPORT
 bridgeUtils_gtest_bin_LDFLAGS += -lnet

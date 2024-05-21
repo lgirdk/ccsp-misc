@@ -32,7 +32,7 @@ AC_ARG_ENABLE([gtestapp],
                case "${enableval}" in
                 yes) GTEST_SUPPORT_ENABLED=true
                      GTEST_ENABLE_FLAG="-DGTEST_ENABLE"
-                     m4_if(m4_sysval,[0],[AC_CONFIG_FILES([source/test/Makefile source/bridge_utils/test/Makefile])]);;
+                     m4_if(m4_sysval,[0],[AC_CONFIG_FILES([source/test/Makefile source/test/bridge_utils/Makefile])]);;
                 no) GTEST_SUPPORT_ENABLED=false AC_MSG_ERROR([Gtest support is disabled]);;
                  *) AC_MSG_ERROR([bad value ${enableval} for --enable-gtestapp ]);;
                esac
@@ -126,6 +126,19 @@ AC_ARG_ENABLE([socketExampleEnable],
 esac],[SOCKET_EXAMPLE_ENABLE=false])
 AM_CONDITIONAL([SOCKET_EXAMPLE_ENABLE], [test x$SOCKET_EXAMPLE_ENABLE = xtrue])
 
+AC_ARG_ENABLE([unitTestDockerSupport],
+             AS_HELP_STRING([--enable-unitTestDockerSupport],[enable docker support for unit testing (default is no)]),
+             [
+              UNIT_TEST_DOCKER_SUPPORT=""
+               case "${enableval}" in
+                yes) UNIT_TEST_DOCKER_SUPPORT=true;;
+                no) UNIT_TEST_DOCKER_SUPPORT=false;;
+                 *) AC_MSG_ERROR([bad value ${enableval} for --enable-unitTestDockerSupport ]);;
+               esac
+             ],
+             [echo "Docker support is disabled"])
+AM_CONDITIONAL([UNIT_TEST_DOCKER_SUPPORT], [test x$UNIT_TEST_DOCKER_SUPPORT = xtrue])
+
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -177,6 +190,8 @@ AM_COND_IF([RDKSCHEDULER_TESTAPP_ENABLE], [AC_CONFIG_FILES([source/RdkSchdeuler_
 AM_COND_IF([SOCKET_EXAMPLE_ENABLE], [AC_CONFIG_FILES([source/Socket_Example/Makefile])])
 
 AC_SUBST(GTEST_ENABLE_FLAG)
+
+AC_SUBST(UNIT_TEST_DOCKER_SUPPORT)
 
 AC_OUTPUT
 
