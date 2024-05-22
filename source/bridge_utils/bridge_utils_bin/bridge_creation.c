@@ -19,6 +19,7 @@
 
 #include "bridge_creation.h"
 #include "bridge_util_hal.h"
+#include "OvsAgentApi.h"
 #include <unistd.h>
 #include <stdint.h>
 #ifdef CORE_NET_LIB
