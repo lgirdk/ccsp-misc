@@ -26,23 +26,46 @@
 #include <unistd.h>
 #include <stdbool.h>
 
+#include "network_interface.h"
 
+#if !defined(USE_LINUX_BRIDGE)
 #include "OvsAgentApi.h"
+#define OTHER_IF_TYPE_VALUE OVS_OTHER_IF_TYPE
+#define IF_UP_CMD_TYPE OVS_IF_UP_CMD
+#define GRE_IF_TYPE_VALUE OVS_GRE_IF_TYPE
+#define VLAN_IF_TYPE_VALUE OVS_VLAN_IF_TYPE
+#define ETH_IF_TYPE_VALUE  OVS_ETH_IF_TYPE
+#define BRIDGE_IF_TYPE_VALUE OVS_BRIDGE_IF_TYPE
+#define IF_DELETE_CMD_TYPE OVS_IF_DELETE_CMD
+#define BR_REMOVE_CMD_TYPE OVS_BR_REMOVE_CMD
+#define IF_DOWN_CMD_TYPE OVS_IF_DOWN_CMD
+typedef Gateway_Config Gateway_Config_t;
+#else
+#define OTHER_IF_TYPE_VALUE OTHER_IF_TYPE
+#define IF_UP_CMD_TYPE IF_UP_CMD
+#define GRE_IF_TYPE_VALUE GRE_IF_TYPE
+#define VLAN_IF_TYPE_VALUE VLAN_IF_TYPE	
+#define ETH_IF_TYPE_VALUE  ETH_IF_TYPE
+#define BRIDGE_IF_TYPE_VALUE BRIDGE_IF_TYPE
+#define IF_DELETE_CMD_TYPE IF_DELETE_CMD
+#define BR_REMOVE_CMD_TYPE BR_REMOVE_CMD
+#define IF_DOWN_CMD_TYPE IF_DOWN_CMD
+typedef Gateway_Config_Non_Ovs_Bridge Gateway_Config_t;
+#endif
+
 typedef struct interact_request{
     #if !defined(USE_LINUX_BRIDGE)
     ovs_interact_request ovs_request;
     #endif
-    Gateway_Config *gw_config;
+    Gateway_Config_t *gw_config;
 }interact_request;
-/**
- * @brief To add a transaction that has been initiated to the transaction store.
- *
- * @param[in] trans_uuid Transaction UUID unique identifier for the message/transaction.
- * @return boolean true indicating success, false indicating failure.
- */
-bool create_bridge_api(interact_request *request, ovs_interact_cb callback);
 
-bool brctl_interact(Gateway_Config * gw_config);
-
+// Function declarations
+#if !defined(USE_LINUX_BRIDGE)
+bool create_ovs_bridge_api(interact_request *request, ovs_interact_cb callback);
+#else
+bool create_linux_bridge_api(interact_request *request);
+#endif
+bool brctl_interact(Gateway_Config_t *gw_config);
 #endif
 

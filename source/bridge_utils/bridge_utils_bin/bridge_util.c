@@ -133,6 +133,30 @@ static InterfaceMap_t InterfaceMap[] =
 
 br_shm_mutex brmutex;
 
+#if !defined(USE_LINUX_BRIDGE)
+int mapOvsCmdToBrCmd(int ifCmd)
+{
+    int brCmdType = -1;
+    switch (ifCmd)
+    {
+        case IF_UP_CMD:
+            brCmdType = OVS_IF_UP_CMD;
+            break;
+        case IF_DELETE_CMD:
+            brCmdType = OVS_IF_DELETE_CMD;
+            break;
+        case BR_REMOVE_CMD:
+            brCmdType = OVS_BR_REMOVE_CMD;
+            break;
+        case IF_DOWN_CMD:
+            brCmdType = OVS_IF_DOWN_CMD;
+            break;
+        default:
+            break;
+    }
+    return brCmdType;
+}
+#endif
 
 void subnet(char *ipv4Addr, char *ipv4Subnet, char *subnet)
 {
@@ -716,39 +740,52 @@ void disableMoCaIsolationSettings (bridgeDetails *bridgeInfo)
               		ovs_interact_request_cb callback --> callback function 
     	return value : returns true when execution succesed otherwise it returns false
 ***********************************************************************************************/
-
-bool create_bridge_api(interact_request *request, ovs_interact_cb callback) 
-{
-
 #if !defined(USE_LINUX_BRIDGE)
-
-	if ( 1 == ovsEnable )
-	{
-		bridge_util_log("%s ovs is enabled, calling ovs api \n", __FUNCTION__ );
-		return (ovs_agent_api_interact(&request->ovs_request,callback));
-	}
-	else
-	{
-		if ( 1 == bridgeUtilEnable )
-		{
-			bridge_util_log("%s ovs is disabled, and bridgeUtilEnable is enabled calling brctl api's create bridge \n", __FUNCTION__ );
-			return (brctl_interact(request->gw_config) );	
-		}
-	}
-#else
-	if(callback==NULL)
-	{
-		bridge_util_log("callback is NULL\n"); 
-	}
-	if ( 1 == bridgeUtilEnable )
-	{
-		bridge_util_log("%s ovs is disabled, and bridgeUtilEnable is enabled calling brctl api's create bridge \n", __FUNCTION__ );
-		return (brctl_interact(request->gw_config) );	
-	}
-#endif
-	return false;
+bool create_ovs_bridge_api(interact_request *request, ovs_interact_cb callback) 
+{
+    if ( 1 == ovsEnable )
+    {
+        bridge_util_log("%s ovs is enabled, calling ovs api \n", __FUNCTION__ );
+        return (ovs_agent_api_interact(&request->ovs_request,callback));
+    }
+    else
+    {
+        if ( 1 == bridgeUtilEnable )
+        {
+            bridge_util_log("%s ovs is disabled, and bridgeUtilEnable is enabled calling brctl api's create bridge \n", __FUNCTION__ );
+            return (brctl_interact(request->gw_config) );	
+        }
+    }
+    return false;
 }
-
+#endif
+/*********************************************************************************************
+prototype:
+        bool
+        create_linux_bridge_api
+            (
+              ovs_interact_request *request,
+            );
+        description :
+            This function creates bridge , and add/delete/update interfaces to it.
+            when linux bridge commands are called.
+        argument:   
+            ovs_interact_request *request    --> request contains mode of operation(insert/delete/update)
+              								  and bridge,vlan/iface details which needs to created/deleted
+              								  /updated
+        return value : returns true when execution succesed otherwise it returns false
+***********************************************************************************************/
+#if defined(USE_LINUX_BRIDGE)
+bool create_linux_bridge_api(interact_request *request)
+{
+    if ( 1 == bridgeUtilEnable )
+    {
+        bridge_util_log("%s ovs is disabled, and bridgeUtilEnable is enabled calling brctl api's create bridge \n", __FUNCTION__ );
+        return (brctl_interact(request->gw_config) );	
+    }
+    return false;
+} 
+#endif
 /*********************************************************************************************
 
     caller:  CreateBrInterface,DeleteBrInterface,SyncBrInterfaces
@@ -1438,22 +1475,22 @@ int HandlePostConfigGeneric(bridgeDetails *bridgeInfo,int InstanceNumber)
 /************************************************************
  * Allocate mempry to the gateway config
 ************************************************************/
-Gateway_Config *Allocate_mem_for_Gateway_Config()
+Gateway_Config_t *Allocate_mem_for_Gateway_Config()
 {
-	Gateway_Config *pGwConfig = NULL;
+	Gateway_Config_t *pGwConfig = NULL;
 	if ( 1 == bridgeUtilEnable )
 	{
-		if ((pGwConfig = (Gateway_Config *)malloc(sizeof(Gateway_Config))) != NULL)
+		if ((pGwConfig = (Gateway_Config_t *)malloc(sizeof(Gateway_Config_t))) != NULL)
 		{
-			memset(pGwConfig, 0, sizeof(Gateway_Config));
-            pGwConfig->if_cmd = OVS_IF_UP_CMD;
+			memset(pGwConfig, 0, sizeof(Gateway_Config_t));
+                        pGwConfig->if_cmd = IF_UP_CMD_TYPE;
 			return pGwConfig;
 		}
 		else
 		{
 			bridge_util_log("%s :bridgeUtilEnabled, malloc to Gateway_Config failed\n",__FUNCTION__); 
 			return NULL;
-		}							
+		}
 	}
 	else
 	{
@@ -1493,20 +1530,24 @@ int updateBridgeInfo(bridgeDetails *bridgeInfo, char* ifNameToBeUpdated, int Opr
 
 	char IfList_Copy[IFLIST_SIZE] = {0} ;
     	char tmp_buff[32] = {0} ;
-
-	int if_type = OVS_OTHER_IF_TYPE , vlanId = -1 ;
+	int if_type = OTHER_IF_TYPE_VALUE;
+	int vlanId = -1 ;
 	interact_request request = {0};
 	//ovs_interact_request ovs_request = {0};
-    	Gateway_Config *pGwConfig = NULL;
+        Gateway_Config_t *pGwConfig = NULL;
 	bool retValue = false ;
     	char* token = NULL; 
     	char* rest = NULL; 
     	bool bridgeCreated = false;
     	bool interfaceExist=true;
+        int OprType = 0;
 #if !defined(USE_LINUX_BRIDGE)
+        OprType = mapOvsCmdToBrCmd(Opr);
 	request.ovs_request.block_mode = OVS_ENABLE_BLOCK_MODE ;
 
 	request.ovs_request.table_config.table.id = OVS_GW_CONFIG_TABLE;
+#else
+        OprType = Opr;
 #endif
 	switch(type)
 	{
@@ -1519,7 +1560,7 @@ int updateBridgeInfo(bridgeDetails *bridgeInfo, char* ifNameToBeUpdated, int Opr
 			{
 				strncpy(IfList_Copy,bridgeInfo->bridgeName,sizeof(IfList_Copy)-1);
 			}
-			if_type = OVS_BRIDGE_IF_TYPE ;
+			if_type = BRIDGE_IF_TYPE_VALUE;
 			break;
 		case IF_VLAN_BRIDGEUTIL:
 			if( ifNameToBeUpdated[0] != '\0' )
@@ -1530,8 +1571,8 @@ int updateBridgeInfo(bridgeDetails *bridgeInfo, char* ifNameToBeUpdated, int Opr
 			{
 				strncpy(IfList_Copy,bridgeInfo->vlan_name,sizeof(IfList_Copy)-1);
 			}
+			if_type = VLAN_IF_TYPE_VALUE ;
 
-			if_type = OVS_VLAN_IF_TYPE ;
 			vlanId = bridgeInfo->vlanID ;
 			break;
 		case IF_WIFI_BRIDGEUTIL:
@@ -1554,8 +1595,7 @@ int updateBridgeInfo(bridgeDetails *bridgeInfo, char* ifNameToBeUpdated, int Opr
 			{
 				strncpy(IfList_Copy,bridgeInfo->ethIfList,sizeof(IfList_Copy)-1);
 			}
-
-			if_type = OVS_ETH_IF_TYPE ;
+			if_type = ETH_IF_TYPE_VALUE;
 			break;
 		case IF_GRE_BRIDGEUTIL: 
 			if( ifNameToBeUpdated[0] != '\0' )
@@ -1567,7 +1607,9 @@ int updateBridgeInfo(bridgeDetails *bridgeInfo, char* ifNameToBeUpdated, int Opr
 				strncpy(IfList_Copy,bridgeInfo->GreIfList,sizeof(IfList_Copy)-1);
 			}
 			// setting as VLAN type since vconfig is used to create the gretap.* interface
-			if_type = OVS_VLAN_IF_TYPE ;
+
+			if_type = VLAN_IF_TYPE_VALUE;
+
 			vlanId = bridgeInfo->vlanID ;
 			break;
 		case IF_MOCA_BRIDGEUTIL: 
@@ -1628,16 +1670,17 @@ int updateBridgeInfo(bridgeDetails *bridgeInfo, char* ifNameToBeUpdated, int Opr
 			*/
 			
 			#ifdef RDK_ONEWIFI
-            		// OVSAgent considers WiFi interfaces as OVS_OTHER_IF_TYPE 
-       			if ( OVS_IF_UP_CMD == Opr && IF_WIFI_BRIDGEUTIL == type && INTERFACE_NOT_EXIST == checkIfExists(token))
+            		// OVSAgent considers WiFi interfaces as OVS_OTHER_IF_TYPE
+       			if ( IF_UP_CMD_TYPE == OprType && IF_WIFI_BRIDGEUTIL == type && INTERFACE_NOT_EXIST == checkIfExists(token))
+
        			{
        				interfaceExist=false;
        				if(bridgeCreated)
        					continue;
        			} 
 			#endif
-            		if ( (ethWanEnabled) && ((if_type == OVS_ETH_IF_TYPE) || (if_type == OVS_VLAN_IF_TYPE) ) && ( strncmp(ethWanIfaceName,token,sizeof(ethWanIfaceName)-1) == 0 ))
-                		continue;
+            	        if ( (ethWanEnabled) && ((if_type == ETH_IF_TYPE_VALUE) || (if_type == VLAN_IF_TYPE_VALUE) ) && ( strncmp(ethWanIfaceName,token,sizeof(ethWanIfaceName)-1) == 0 ))
+            		    continue;
 OVSACTION:
 #if !defined(USE_LINUX_BRIDGE)
 			if ( 1 == ovsEnable )
@@ -1658,18 +1701,16 @@ OVSACTION:
 #else
 			if(pGwConfig != NULL)
 			{
-				memset(pGwConfig,0,sizeof(Gateway_Config));
+				memset(pGwConfig,0,sizeof(Gateway_Config_t));
         	}
 #endif
 
-				strncpy(pGwConfig->parent_bridge,bridgeInfo->bridgeName,sizeof(pGwConfig->parent_bridge)-1); ;
+			strncpy(pGwConfig->parent_bridge,bridgeInfo->bridgeName,sizeof(pGwConfig->parent_bridge)-1); ;
+		    	pGwConfig->if_type = if_type ;
+	                if ( IF_UP_CMD_TYPE != OprType ) 
+                            pGwConfig->if_cmd = OprType;
 
-		    		pGwConfig->if_type = if_type ;
-
-	                        if ( OVS_IF_UP_CMD != Opr ) 
-                            		pGwConfig->if_cmd = Opr;
-
-				if ( ( if_type == OVS_GRE_IF_TYPE ) || ( if_type == OVS_VLAN_IF_TYPE )  )
+				if ( ( if_type == GRE_IF_TYPE_VALUE ) || ( if_type == VLAN_IF_TYPE_VALUE )  )
 				{
 	    				pGwConfig->vlan_id = vlanId ;
 					if ( bridgeInfo->VirtualParentIfname[0] != '\0' )
@@ -1710,10 +1751,15 @@ OVSACTION:
 					request.gw_config=pGwConfig;
 					bridge_util_log("%s : parent_ifname is %s : if_name is %s : bridge %s : vlan id is %d , if_type is %d: \n", __FUNCTION__,pGwConfig->parent_ifname,pGwConfig->if_name,pGwConfig->parent_bridge,pGwConfig->vlan_id,pGwConfig->if_type); 
 				}
-				retValue = create_bridge_api(&request,NULL);
+				#if !defined(USE_LINUX_BRIDGE)
+				retValue = create_ovs_bridge_api(&request,NULL);
+				#else
+				retValue = create_linux_bridge_api(&request);
+				#endif
+
 				if ( retValue != true )
 				{
-					bridge_util_log("create_bridge_api call failed\n");
+					bridge_util_log("create bridge call failed\n");
                    			 if ( retryCounter == 0 )
                     			{
                         			retryCounter++;
@@ -1744,7 +1790,9 @@ OVSACTION:
 		free(pGwConfig);
 		pGwConfig=NULL;
 		request.gw_config=NULL;
+		#if !defined(USE_LINUX_BRIDGE)
 		request.ovs_request.table_config.config=NULL;
+		#endif
 	}
   #endif
     return 0;
@@ -1767,7 +1815,6 @@ OVSACTION:
 
 int CreateBrInterface()
 {
-
 	char event_name[64] = {0};
 	snprintf(event_name,sizeof(event_name),"multinet_%d-status",InstanceNumber);
 	sysevent_set(syseventfd_vlan, sysevent_token_vlan, event_name, "partial", 0);
@@ -1798,12 +1845,13 @@ int CreateBrInterface()
 	snprintf(event_name,sizeof(event_name),"multinet_%d-vid",InstanceNumber);
 	snprintf(val,sizeof(val),"%d",bridgeInfo->vlanID);
 	sysevent_set(syseventfd_vlan, sysevent_token_vlan, event_name, val, 0);
-	
+
 	if ( bridgeInfo->vlan_name[0] != '\0' )
-    {
-        bridgeCreated = 1 ;
-		updateBridgeInfo(bridgeInfo,"",OVS_IF_UP_CMD,IF_VLAN_BRIDGEUTIL);			
-    }
+        {
+                bridgeCreated = 1 ;
+		
+		updateBridgeInfo(bridgeInfo,"",IF_UP_CMD,IF_VLAN_BRIDGEUTIL);		
+        }
 
     	if ( bridgeInfo->GreIfList[0] != '\0')
     	{
@@ -1812,8 +1860,7 @@ int CreateBrInterface()
 				if ( 0 ==  wait_for_gre_ready(bridgeInfo->GreIfList) )
     		{
                 	bridgeCreated = 1 ;
-    			updateBridgeInfo(bridgeInfo,"",OVS_IF_UP_CMD,IF_GRE_BRIDGEUTIL); 				
-
+    			updateBridgeInfo(bridgeInfo,"",IF_UP_CMD,IF_GRE_BRIDGEUTIL); 				
 		     }    	
 			}
     					
@@ -1823,28 +1870,25 @@ int CreateBrInterface()
     	{
     		need_switch_gw_refresh = 1;
                 bridgeCreated = 1 ;
-
-		updateBridgeInfo(bridgeInfo,"",OVS_IF_UP_CMD,IF_ETH_BRIDGEUTIL);		
+		updateBridgeInfo(bridgeInfo,"",IF_UP_CMD,IF_ETH_BRIDGEUTIL);		
     	}
 
     	if ( bridgeInfo->MoCAIfList[0] != '\0')
     	{
         	bridgeCreated = 1 ;
-		updateBridgeInfo(bridgeInfo,"",OVS_IF_UP_CMD,IF_MOCA_BRIDGEUTIL); 				
+		updateBridgeInfo(bridgeInfo,"",IF_UP_CMD,IF_MOCA_BRIDGEUTIL); 				
 	}	
 
 	if ( bridgeInfo->WiFiIfList[0] != '\0')
 	{		     						 
     		need_wifi_gw_refresh = 1;
                 bridgeCreated = 1 ;
-		updateBridgeInfo(bridgeInfo,"",OVS_IF_UP_CMD,IF_WIFI_BRIDGEUTIL); 				
-
+		updateBridgeInfo(bridgeInfo,"",IF_UP_CMD,IF_WIFI_BRIDGEUTIL); 				
 	}
 		
         if ( bridgeCreated == 0 )
         {
-                updateBridgeInfo(bridgeInfo,"",OVS_IF_UP_CMD,IF_BRIDGE_BRIDGEUTIL);                 
-
+                updateBridgeInfo(bridgeInfo,"",IF_UP_CMD,IF_BRIDGE_BRIDGEUTIL);                 
         }
 	HandlePostConfigGeneric(bridgeInfo,InstanceNumber);
 	HandlePostConfigVendorGeneric(bridgeInfo,InstanceNumber);
@@ -1902,21 +1946,18 @@ int DeleteBrInterface()
 
 	HandlePreConfigGeneric(bridgeInfo,InstanceNumber);
 	HandlePreConfigVendorGeneric(bridgeInfo,InstanceNumber);
-                
        	if ( bridgeInfo->vlan_name[0] != '\0' )
         {
-                updateBridgeInfo(bridgeInfo,"",OVS_IF_DELETE_CMD,IF_VLAN_BRIDGEUTIL);               
+                updateBridgeInfo(bridgeInfo,"",IF_DELETE_CMD,IF_VLAN_BRIDGEUTIL);               
                 
         }
 
         if ( bridgeInfo->GreIfList[0] != '\0')
         {
-        	updateBridgeInfo(bridgeInfo,"",OVS_IF_DELETE_CMD,IF_GRE_BRIDGEUTIL);               
-
+        	updateBridgeInfo(bridgeInfo,"",IF_DELETE_CMD,IF_GRE_BRIDGEUTIL);               
         } 
 		
-	updateBridgeInfo(bridgeInfo,"",OVS_IF_DELETE_CMD,IF_BRIDGE_BRIDGEUTIL); 				
-
+	updateBridgeInfo(bridgeInfo,"",IF_DELETE_CMD,IF_BRIDGE_BRIDGEUTIL); 				
     	if ( bridgeInfo->WiFiIfList[0] != '\0' )
     	{
 		need_wifi_gw_refresh = 1;
@@ -2204,8 +2245,7 @@ IF_REMOVE:
 			need_wifi_gw_refresh = 1;
 			need_switch_gw_refresh = 1 ;
 			bridge_util_log("In  function removeIfaceFromBridge removing  %s\n", token_curlist);
-			updateBridgeInfo(bridgeInfo,token_curlist,OVS_BR_REMOVE_CMD,IF_OTHER_BRIDGEUTIL); 				
-  	
+			updateBridgeInfo(bridgeInfo,token_curlist,BR_REMOVE_CMD,IF_OTHER_BRIDGEUTIL); 				
 				
 		}
 
@@ -2253,6 +2293,7 @@ void addIfaceToBridge(bridgeDetails *bridgeInfo,char *current_if_list)
 	char IfList_Copy[IFLIST_SIZE] = {0} ;
 	char currentIfListCopy[TOTAL_IFLIST_SIZE] = {0} ;
 
+
 	if ( bridgeInfo->vlan_name[0] != '\0' )
     	{
 
@@ -2281,8 +2322,7 @@ void addIfaceToBridge(bridgeDetails *bridgeInfo,char *current_if_list)
 
 			if (addIface == 1)
 			{
-				updateBridgeInfo(bridgeInfo,token_newlist,OVS_IF_UP_CMD,IF_VLAN_BRIDGEUTIL); 				
-
+				updateBridgeInfo(bridgeInfo,token_newlist,IF_UP_CMD,IF_VLAN_BRIDGEUTIL); 				
 			}
 		}  
 		
@@ -2318,8 +2358,7 @@ void addIfaceToBridge(bridgeDetails *bridgeInfo,char *current_if_list)
 
 				if (addIface == 1)
 				{
-					updateBridgeInfo(bridgeInfo,token_newlist,OVS_IF_UP_CMD,IF_GRE_BRIDGEUTIL); 				
-
+					updateBridgeInfo(bridgeInfo,token_newlist,IF_UP_CMD,IF_GRE_BRIDGEUTIL); 				
 				}
 			}
 
@@ -2354,7 +2393,7 @@ void addIfaceToBridge(bridgeDetails *bridgeInfo,char *current_if_list)
 
 			if (addIface == 1)
 			{
-				updateBridgeInfo(bridgeInfo,token_newlist,OVS_IF_UP_CMD,IF_ETH_BRIDGEUTIL); 				
+				updateBridgeInfo(bridgeInfo,token_newlist,IF_UP_CMD,IF_ETH_BRIDGEUTIL); 				
  
 			}
 		}  
@@ -2386,8 +2425,7 @@ void addIfaceToBridge(bridgeDetails *bridgeInfo,char *current_if_list)
 
 			if (addIface == 1)
 			{
-				updateBridgeInfo(bridgeInfo,token_newlist,OVS_IF_UP_CMD,IF_MOCA_BRIDGEUTIL); 				
-
+				updateBridgeInfo(bridgeInfo,token_newlist,IF_UP_CMD,IF_MOCA_BRIDGEUTIL); 				
 			}
 		}  
 		
@@ -2420,8 +2458,7 @@ void addIfaceToBridge(bridgeDetails *bridgeInfo,char *current_if_list)
 
 			if (addIface == 1)
 			{
-				updateBridgeInfo(bridgeInfo,token_newlist,OVS_IF_UP_CMD,IF_WIFI_BRIDGEUTIL); 				
-
+				updateBridgeInfo(bridgeInfo,token_newlist,IF_UP_CMD,IF_WIFI_BRIDGEUTIL); 				
 			}
 		}  
 		
@@ -2546,13 +2583,13 @@ void AddOrDeletePort(char* bridge_name, char* iface_name,int operation)
 
     strncpy(bridgeInfo.bridgeName,bridge_name,sizeof(bridgeInfo.bridgeName)-1);
 
-    if ( operation == OVS_IF_UP_CMD )
+    if ( operation == IF_UP_CMD_TYPE )
     {
-            updateBridgeInfo(&bridgeInfo,iface_name,OVS_IF_UP_CMD,IF_OTHER_BRIDGEUTIL);                
+        updateBridgeInfo(&bridgeInfo,iface_name,IF_UP_CMD,IF_OTHER_BRIDGEUTIL);                
     }
-    else if  ( operation == OVS_BR_REMOVE_CMD )
+    else if ( operation == BR_REMOVE_CMD_TYPE )
     {
-            updateBridgeInfo(&bridgeInfo,iface_name,OVS_BR_REMOVE_CMD,IF_OTHER_BRIDGEUTIL);
+        updateBridgeInfo(&bridgeInfo,iface_name,BR_REMOVE_CMD,IF_OTHER_BRIDGEUTIL);
     }
 
     return ;
@@ -3057,11 +3094,11 @@ int bridgeUtils_main(int argc, char *argv[])
     }
     else if ( (strcmp(Cmd_Opr,"add-port") == 0 ) ) 
     {
-        AddOrDeletePort(argv[2],argv[3],OVS_IF_UP_CMD);
+        AddOrDeletePort(argv[2],argv[3],IF_UP_CMD_TYPE);
     }
     else if ( (strcmp(Cmd_Opr,"del-port") == 0 ) ) 
     {
-        AddOrDeletePort(argv[2],argv[3],OVS_BR_REMOVE_CMD);
+        AddOrDeletePort(argv[2],argv[3],BR_REMOVE_CMD_TYPE);
     }
     else if ( (strstr(Cmd_Opr,"if_wlan") != 0 ) ) 
     {
@@ -3109,7 +3146,7 @@ int bridgeUtils_main(int argc, char *argv[])
                 {
                     if (INTERFACE_NOT_EXIST == checkIfExistsInBridge(wlan_ifname, bridgeInfo->bridgeName))
                     {
-                        AddOrDeletePort(bridgeInfo->bridgeName, wlan_ifname, OVS_IF_UP_CMD);
+                        AddOrDeletePort(bridgeInfo->bridgeName, wlan_ifname, IF_UP_CMD_TYPE);
                     }
                 }
             }

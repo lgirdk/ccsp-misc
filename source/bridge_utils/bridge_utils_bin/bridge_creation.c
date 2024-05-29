@@ -19,12 +19,12 @@
 
 #include "bridge_creation.h"
 #include "bridge_util_hal.h"
-#include "OvsAgentApi.h"
 #include <unistd.h>
 #include <stdint.h>
 #ifdef CORE_NET_LIB
 #include <libnet.h>
 #endif
+
 /*********************************************************************************************
 
     caller:  CreateBrInterface,DeleteBrInterface,SyncBrInterfaces
@@ -43,7 +43,7 @@
 			ovs_api_request *request  -- It has bridge and iface related data
 	return : When success returns true 
 ***********************************************************************************************/
-bool brctl_interact(Gateway_Config * gw_config)
+bool brctl_interact(Gateway_Config_t * gw_config)
 {
 	char cmd[1024] = {0} ;
 
@@ -98,11 +98,12 @@ bool brctl_interact(Gateway_Config * gw_config)
 
 		}
 #endif
-		bridge_util_log("if_cmd:%d if_type:%d\n",gw_config->if_cmd,gw_config->if_type);
-		if ( OVS_IF_DELETE_CMD == gw_config->if_cmd )
+
+        bridge_util_log("if_cmd:%d if_type:%d\n",gw_config->if_cmd,gw_config->if_type);
+		if ( IF_DELETE_CMD_TYPE == gw_config->if_cmd)
 		{
 
-			if ( gw_config->if_type == OVS_BRIDGE_IF_TYPE )
+			if ( gw_config->if_type == BRIDGE_IF_TYPE_VALUE )
 			{
 
 #ifdef CORE_NET_LIB
@@ -133,7 +134,7 @@ bool brctl_interact(Gateway_Config * gw_config)
 
 #endif
 			}
-			else if ( ( gw_config->if_type == OVS_VLAN_IF_TYPE ) || ( gw_config->if_type == OVS_GRE_IF_TYPE ) )
+			else if ((gw_config->if_type == VLAN_IF_TYPE_VALUE) || (gw_config->if_type == GRE_IF_TYPE_VALUE ))
 			{
 
 #ifdef CORE_NET_LIB
@@ -169,9 +170,9 @@ bool brctl_interact(Gateway_Config * gw_config)
 
 
 		}
-		else if ( OVS_BR_REMOVE_CMD == gw_config->if_cmd )
+		else if ( BR_REMOVE_CMD_TYPE == gw_config->if_cmd )
 		{
-				if ( ( gw_config->if_type == OVS_VLAN_IF_TYPE ) || ( gw_config->if_type == OVS_GRE_IF_TYPE ) )
+				if ( (gw_config->if_type == VLAN_IF_TYPE_VALUE ) || (gw_config->if_type == GRE_IF_TYPE_VALUE) )
 				{
 #ifdef CORE_NET_LIB
 					interface_remove_from_bridge (gw_config->parent_ifname);
@@ -200,7 +201,7 @@ bool brctl_interact(Gateway_Config * gw_config)
 #endif	
 				}
 		}
-		else if ( OVS_IF_DOWN_CMD == gw_config->if_cmd )
+		else if (IF_DOWN_CMD_TYPE == gw_config->if_cmd)
 		{
 					if ( gw_config->if_name[0] != '\0' )
 					{
@@ -212,7 +213,7 @@ bool brctl_interact(Gateway_Config * gw_config)
 #endif
 					}
 		}
-		else if ( OVS_IF_UP_CMD == gw_config->if_cmd )
+		else if (IF_UP_CMD_TYPE == gw_config->if_cmd )
 		{
 			if ( gw_config->parent_bridge[0] != '\0' )
 			{
@@ -241,7 +242,7 @@ bool brctl_interact(Gateway_Config * gw_config)
 #endif
 			}
 
-			if ( ( gw_config->if_type == OVS_VLAN_IF_TYPE ) || ( gw_config->if_type == OVS_GRE_IF_TYPE ) )
+			if ( ( gw_config->if_type == VLAN_IF_TYPE_VALUE ) || ( gw_config->if_type == GRE_IF_TYPE_VALUE ) )
 			{
 				#ifdef CORE_NET_LIB
 				    struct bridge_info bridge_Init;
