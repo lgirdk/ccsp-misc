@@ -383,6 +383,5 @@ bool brctl_interact(Gateway_Config * gw_config)
 				#endif
 
 		}
-			free(gw_config);
 	return true ;
 }
