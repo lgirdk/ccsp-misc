@@ -172,7 +172,7 @@ fi
 		fi
 	fi
 
-if [ "xcompleted" != "x`syscfg get cbrv2_psm_migration`" ];then
+if [ "xcompleted" != "x`syscfg get cbrv2_psm_migration_v1`" ];then
 
         if [ "$MODEL_NUM" = "CGA4332COM" ];then
                 rm -rf "$MIGRATION_FILE"
@@ -181,7 +181,7 @@ if [ "xcompleted" != "x`syscfg get cbrv2_psm_migration`" ];then
                 psmcli set dmsb.l2net.1.Members.WiFi "wl0 wl1"
                 psmcli set dmsb.l2net.1.Port.6.Name "wl0"
                 psmcli set dmsb.l2net.1.Port.6.LinkName "wl0"
-                psmcli set dmsb.l2net.1.Members.Eth "eth0 eth1 eth2 eth3 eth4"
+                psmcli set dmsb.l2net.1.Members.Eth "eth0 eth1 eth2 eth3 eth4 eth5"
 
                 for i in 1 2 3 4 5 6 7 8
                 do
@@ -274,9 +274,10 @@ if [ "xcompleted" != "x`syscfg get cbrv2_psm_migration`" ];then
                 cbr2_migrationCompleteFlag=1
         fi
         if [ "$cbr2_migrationCompleteFlag" -eq 1 ];then
-                syscfg set cbrv2_psm_migration "completed"
-                if [ "xcompleted" == "x`syscfg get cbr2_psm_migration`" ];then
+                syscfg set cbrv2_psm_migration_v1 "completed"
+                if [ "xcompleted" == "x`syscfg get cbr2_psm_migration`" ] || [ "xcompleted" == "x`syscfg get cbrv2_psm_migration`" ];then
                       syscfg unset cbr2_psm_migration
+                      syscfg unset cbrv2_psm_migration
                 fi
                 syscfg commit
         fi
