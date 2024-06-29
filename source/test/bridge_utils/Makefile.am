@@ -45,7 +45,25 @@ bridgeUtils_gtest_bin_SOURCES = bridgeUtilsTest.cpp \
                                 mocks/mock_ovs.cpp \
                                 mocks/mock_bridge_util_generic.cpp
 
-bridgeUtils_gtest_bin_LDFLAGS = -lgtest -lgmock -lgcov -lrt -lmock_fd -lmock_util -lmock_sysevent -lmock_syscfg -lmock_socket -lmock_psm -lmock_file_io -lmock_secure_wrapper -lmock_privilege -lmock_ccsp_common
+bridgeUtils_gtest_bin_LDFLAGS = -lgtest -lgmock -lgcov -lrt -lpthread
+
+if WITH_GTEST_SUPPORT
+if UNIT_TEST_DOCKER_SUPPORT
+bridgeUtils_gtest_bin_LDADD = \
+    $(HOME)/usr/local/lib/libmock_fd.la \
+    $(HOME)/usr/local/lib/libmock_util.la \
+    $(HOME)/usr/local/lib/libmock_sysevent.la \
+    $(HOME)/usr/local/lib/libmock_syscfg.la \
+    $(HOME)/usr/local/lib/libmock_socket.la \
+    $(HOME)/usr/local/lib/libmock_psm.la \
+    $(HOME)/usr/local/lib/libmock_file_io.la \
+    $(HOME)/usr/local/lib/libmock_secure_wrapper.la \
+    $(HOME)/usr/local/lib/libmock_privilege.la \
+    $(HOME)/usr/local/lib/libmock_ccsp_common.la
+else
+bridgeUtils_gtest_bin_LDFLAGS += -lmock_fd -lmock_util -lmock_sysevent -lmock_syscfg -lmock_socket -lmock_psm -lmock_file_io -lmock_secure_wrapper -lmock_privilege -lmock_ccsp_common
+endif
+endif
 
 AM_CFLAGS += -fprofile-arcs -ftest-coverage
 AM_CXXFLAGS += -fprofile-arcs -ftest-coverage

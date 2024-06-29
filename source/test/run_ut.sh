@@ -17,107 +17,151 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ####################################################################################
-# Function to print logs
+# Define the logging function
 log() {
+    local level=$1
+    local message=$2
+    local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
     echo " "
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    echo "[$timestamp] $level: $message"
     echo " "
 }
 
-#Storing current directory path
-PWD=$(pwd)
-
 # Initialize branch variable with an if-else statement
-if [ -z "$BRANCH" ]; then
-    branch="stable2"
-    log "BRANCH variable is unset; defaulting to 'stable2'"
+branch=${BRANCH:-stable2}
+log "INFO" "Using branch: $branch"
+
+# Check if RdkbGMock directory already exists
+if [ -d "RdkbGMock" ]; then
+    log "INFO" "RdkbGMock directory already exists. Skipping clone."
+    cd RdkbGMock
 else
-    branch=$BRANCH
-    log "Using branch: $branch"
+    log "INFO" "RdkbGMock directory does not exist. Cloning repository..."
+    if git clone ssh://gerrit.teamccp.com:29418/rdk/rdkb/components/opensource/ccsp/RdkbGMock/generic RdkbGMock -b "$branch"; then
+        log "INFO" "Entering into RdkbGMock directory..."
+        cd RdkbGMock
+    else
+        log "ERROR" "Failed to clone RdkbGMock repository."
+        exit 1
+    fi
 fi
 
-if git clone ssh://gerrit.teamccp.com:29418/rdk/rdkb/components/opensource/ccsp/RdkbGMock/generic RdkbGMock -b $branch; then
-log "Entering into RdkbGMock directory..."
-cd RdkbGMock
-  log "Start Running RdkbGMock Dependency Component Script ..."
-  if ./docker_scripts/run_dependency.sh; then
-      log "Done Running RdkbGMock Dependency Component Script."
-  else
-      log "Failed to run Run RdkbGMock Dependency Component Script."
-      cd ..
-      rm -rf RdkbGMock
-      exit 1
-  fi
+# Check if change number/revision is provided
+if [ -n "$1" ]; then
+    change_revision=$1
+    change_number=$(echo $change_revision | cut -d'/' -f1)
+    revision=$(echo $change_revision | cut -d'/' -f2)
+    last_two_digits=${change_number: -2}
+
+    log "INFO" "Fetching and cherry-picking changes..."
+    if git fetch ssh://gerrit.teamccp.com:29418/rdk/rdkb/components/opensource/ccsp/RdkbGMock/generic refs/changes/"$last_two_digits"/"$change_number"/"$revision" && git cherry-pick FETCH_HEAD; then
+        log "INFO" "Changes fetched and cherry-picked successfully."
+    else
+        log "ERROR" "Failed to fetch and cherry-pick changes."
+        exit 1
+    fi
+else
+    log "INFO" "No change number/revision provided, skipping git fetch and cherry-pick."
 fi
-log "Coming out of RdkbGMock directory and Removing it..."
+
+log "INFO" "Start Running RdkbGMock Dependency Component Script..."
+if ./docker_scripts/run_dependency.sh; then
+    log "INFO" "Done Running RdkbGMock Dependency Component Script."
+else
+    log "ERROR" "Failed to run RdkbGMock Dependency Component Script."
+    cd ..
+    exit 1
+fi
+
+log "INFO" "Coming out of RdkbGMock directory"
 cd ..
-rm -rf RdkbGMock
 
-log "Start Running UT Script..."
+log "INFO" "Start Running UT Script..."
 # Run autogen.sh
-log "Running autogen.sh..."
+log "INFO" "Running autogen.sh..."
 if ./autogen.sh; then
-    log "autogen.sh executed successfully."
+    log "INFO" "autogen.sh executed successfully."
 else
-    log "Failed to run autogen.sh"
+    log "ERROR" "Failed to run autogen.sh"
     exit 1
 fi
 
 # Run configure with specific options
-log "Running configure with options --enable-gtestapp and --enable-unitTestDockerSupport..."
+log "INFO" "Running configure with options --enable-gtestapp and --enable-unitTestDockerSupport..."
 if ./configure --enable-gtestapp --enable-unitTestDockerSupport; then
-    log "Configuration successful."
+    log "INFO" "Configuration successful."
 else
-    log "Configuration failed."
+    log "ERROR" "Configuration failed."
     exit 1
+fi
+
+# Check if the export_var.sh file exists in the current working directory
+if [ ! -f "${PWD}/RdkbGMock/docker_scripts/export_var.sh" ]; then
+    log "ERROR" "RdkbGMock/docker_scripts/export_var.sh does not exist in the directory $PWD."
+    exit 1
+else
+    # Source the export_var.sh script from the current working directory
+    source "RdkbGMock/docker_scripts/export_var.sh"
+
+    # Log the paths set by the sourced script
+    log "INFO" "C_INCLUDE_PATH is set to: $C_INCLUDE_PATH"
+    log "INFO" "CPLUS_INCLUDE_PATH is set to: $CPLUS_INCLUDE_PATH"
 fi
 
 # Run make for specific target
-log "Running make for bridgeUtils_gtest.bin..."
+log "INFO" "Running make for bridgeUtils_gtest.bin..."
 if make -C source/test/bridge_utils; then
-    log "Make operation completed successfully."
+    log "INFO" "Make operation completed successfully."
 else
-    log "Make operation failed."
+    log "ERROR" "Make operation failed."
     exit 1
 fi
-log "Completed running UT script."
+log "INFO" "Completed running UT script."
 
-
-log "Preparing to run the Gtest Binary"
+log "INFO" "Preparing to run the Gtest Binary"
 if [ -f "./source/test/bridge_utils/bridgeUtils_gtest.bin" ]; then
-    log "Running bridgeUtils_gtest.bin"
+    log "INFO" "Running bridgeUtils_gtest.bin"
     ./source/test/bridge_utils/bridgeUtils_gtest.bin
-    log "Completed Test Execution"
+    log "INFO" "Completed Test Execution"
 else
-    log "bridgeUtils_gtest.bin does not exist, cannot run tests"
+    log "ERROR" "bridgeUtils_gtest.bin does not exist, cannot run tests"
     exit 1
 fi
 
-log "Starting Gcov for code coverage analysis"
+log "INFO" "Starting Gcov for code coverage analysis"
 # Capture initial coverage data
 if lcov --directory . --capture --output-file coverage.info; then
-    log "Initial coverage data captured successfully"
+    log "INFO" "Initial coverage data captured successfully"
 else
-    log "Failed to capture initial coverage data"
+    log "ERROR" "Failed to capture initial coverage data"
     exit 1
 fi
 
 # Removing unwanted coverage paths
 if lcov --remove coverage.info "${PWD}/source/test/*" --output-file coverage.info && \
-   lcov --remove coverage.info '/usr/*' --output-file coverage.info; then
-    log "Filtered out test and system library coverage data"
+   lcov --remove coverage.info "$HOME/usr/*" --output-file coverage.info && \
+   lcov --remove coverage.info "/usr/*" --output-file coverage.info; then
+    log "INFO" "Filtered out test and system library coverage data"
 else
-    log "Failed to filter coverage data"
+    log "ERROR" "Failed to filter coverage data"
+    exit 1
+fi
+
+log "INFO" "List the coverage.info"
+if lcov --list coverage.info; then
+    log "INFO" "coverage.info list"
+else
+    log "ERROR" "Failed to list the coverage data"
     exit 1
 fi
 
 # Generating HTML report
 if genhtml coverage.info --output-directory out; then
-    log "Gcov report generated in 'out' directory"
+    log "INFO" "Gcov report generated in 'out' directory"
 else
-    log "Failed to generate Gcov report"
+    log "ERROR" "Failed to generate Gcov report"
     exit 1
 fi
-log "Completed Gcov report analysis"
+log "INFO" "Completed Gcov report analysis"
 
-log "All operations completed for UT successfully"
+log "INFO" "All operations completed for UT successfully"
