@@ -38,7 +38,10 @@
 #include <mocks/mock_ansc_memory.h>
 #include <mocks/mock_cap.h>
 #include "mocks/mock_bridge_util_generic.h"
-
+#include <mocks/mock_base_api.h>
+#include <mocks/mock_usertime.h>
+#include <mocks/mock_ansc_wrapper_api.h>
+#include <mocks/mock_trace.h>
 
 using namespace std;
 using std::experimental::filesystem::exists;
@@ -73,6 +76,10 @@ BridgeUtilsGenericMock * g_bridgeUtilsGenericMock = NULL;
 SecureWrapperMock * g_securewrapperMock = NULL;
 CapMock * g_capMock                     = NULL;
 AnscMemoryMock * g_anscMemoryMock       = NULL;
+BaseAPIMock * g_baseapiMock = NULL;
+UserTimeMock * g_usertimeMock = NULL;
+AnscWrapperApiMock * g_anscWrapperApiMock = NULL;
+TraceMock * g_traceMock = NULL;
 
 class BridgeUtilsTestFixture : public ::testing::TestWithParam<int> {
     protected:
@@ -89,6 +96,10 @@ class BridgeUtilsTestFixture : public ::testing::TestWithParam<int> {
         SecureWrapperMock mockedsecurewrapper;
         CapMock mockedcapMock;                
         AnscMemoryMock mockedanscMemoryMock;
+        BaseAPIMock mockedbaseapi;
+        UserTimeMock mockedUsertime;
+        AnscWrapperApiMock mockedAnscWrapperApi;
+        TraceMock mockedTrace;
 
         BridgeUtilsTestFixture()
         {
@@ -105,6 +116,10 @@ class BridgeUtilsTestFixture : public ::testing::TestWithParam<int> {
             g_securewrapperMock      = &mockedsecurewrapper;
             g_capMock                = &mockedcapMock;	
 	    g_anscMemoryMock        =  &mockedanscMemoryMock;
+            g_baseapiMock = &mockedbaseapi;
+	    g_usertimeMock = &mockedUsertime;
+            g_anscWrapperApiMock = &mockedAnscWrapperApi;
+            g_traceMock = &mockedTrace;
 
         }
 
@@ -122,7 +137,11 @@ class BridgeUtilsTestFixture : public ::testing::TestWithParam<int> {
 	    g_bridgeUtilsGenericMock = NULL;
             g_securewrapperMock    = NULL;
             g_capMock              = NULL ;	 
-            g_anscMemoryMock        = NULL ;   
+            g_anscMemoryMock        = NULL ;
+            g_baseapiMock = NULL;
+            g_usertimeMock = NULL;
+            g_anscWrapperApiMock = NULL;
+            g_traceMock = NULL;
         }
         virtual void SetUp()
         {
