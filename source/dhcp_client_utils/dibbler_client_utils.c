@@ -315,6 +315,54 @@ static int dibbler_client_prepare_config (dibbler_client_info * client_info)
 }
 #endif
 
+static int getProcessIDFromConfigFile(char *file_path) 
+{
+	FILE *file = fopen(file_path, "r");
+	if (file == NULL) 
+	{
+		DBG_PRINT("%s %d: Failed to open file file_path %s  \n", __FUNCTION__, __LINE__,file_path);
+		return 0; 
+	}
+	char buffer[10];
+	if (fgets(buffer, sizeof(buffer), file) == NULL) 
+	{
+		DBG_PRINT("%s %d: Failed to read pid from file  %s \n", __FUNCTION__, __LINE__,file_path);
+		fclose(file);
+		return 0; 
+	}
+
+	fclose(file);
+
+	return atoi(buffer);
+}
+
+static pid_t getDibblerClientPID (char * name)
+{
+	if (name == NULL)
+	{
+		DBG_PRINT("%s %d: Invalid args\n", __FUNCTION__, __LINE__);
+		return 0;
+	}
+	int pid = 0;
+	char ConfigFilePath[256];
+	char *pid_filename = "/client.pid"; //After init Dibbler will store the child pid in client.pid file
+	int waitTime = RETURN_PID_TIMEOUT_IN_MSEC;
+
+	snprintf(ConfigFilePath, sizeof(ConfigFilePath),"%s%s", name, pid_filename);
+
+	while (waitTime > 1) //wait for few sec to complete daemonize of dibbler-client
+	{
+		usleep(RETURN_PID_INTERVAL_IN_MSEC * USECS_IN_MSEC);
+		pid = getProcessIDFromConfigFile(ConfigFilePath);
+		if (pid != 0)
+		{
+			break;
+		}
+		waitTime -= RETURN_PID_INTERVAL_IN_MSEC;
+	}
+	return pid;
+}
+
 /*
  * start_dibbler ()
  * @description: This function will build udhcpc request/send options and start dibbler client program.
@@ -390,7 +438,7 @@ pid_t start_dibbler (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_op
         DBG_PRINT("%s %d: unable to collect pid for %d.\n", __FUNCTION__, __LINE__, pid);
     }
 
-    pid = get_process_pid (DIBBLER_CLIENT, custom_cfg_path[0] != '\0' ? custom_cfg_path : NULL, true);
+    pid = getDibblerClientPID(custom_cfg_path[0] != '\0' ? custom_cfg_path : DIBBLER_TMP_DIR_PATH);
     DBG_PRINT("%s %d: Started dibbler-client. returning pid (%d)..\n", __FUNCTION__, __LINE__, pid);
 
     return pid;
