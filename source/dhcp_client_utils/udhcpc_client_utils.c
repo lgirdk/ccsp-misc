@@ -218,6 +218,22 @@ static int udhcpc_get_other_args (char * buff, size_t buff_size, dhcp_params * p
     }
     cur_pos += n;
 
+    n = snprintf(buff + cur_pos, buff_size - cur_pos, "-S ");
+    if (n < 0 || n >= buff_size - cur_pos)
+    {
+        DBG_PRINT("%s %d: Error in adding -S option \n", __FUNCTION__, __LINE__);
+        return FAILURE;
+    }
+    cur_pos += n;
+
+    n = snprintf(buff + cur_pos, buff_size - cur_pos, "-vvv ");
+    if (n < 0 || n >= buff_size - cur_pos)
+    {
+        DBG_PRINT("%s %d: Error in adding -vvv option \n", __FUNCTION__, __LINE__);
+        return FAILURE;
+    }
+    cur_pos += n;
+
     // Add udhcpc process behavior
 #ifdef UDHCPC_RUN_IN_FOREGROUND
     // udhcpc will run in foreground
