@@ -337,7 +337,7 @@ pid_t start_udhcpc (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_opt
         DBG_PRINT("%s %d: unable to collect pid for %d\n", __FUNCTION__, __LINE__, pid);
     }
 
-    pid = get_process_pid (UDHCPC_CLIENT, NULL, true);
+    pid = get_process_pid (UDHCPC_CLIENT, params->ifname, true);
     DBG_PRINT("%s %d: Started udhcpc, returning pid %d\n", __FUNCTION__, __LINE__, pid);
 #endif
 
