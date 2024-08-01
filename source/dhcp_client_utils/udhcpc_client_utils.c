@@ -338,7 +338,7 @@ pid_t start_udhcpc (dhcp_params * params, dhcp_opt_list * req_opt_list, dhcp_opt
     }
 
     DBG_PRINT("%s %d: Started dibbler-client. returning pid..\n", __FUNCTION__, __LINE__);
-    pid = get_process_pid (UDHCPC_CLIENT, NULL, true);
+    pid = get_process_pid (UDHCPC_CLIENT, params->ifname, true);
 #endif
 
     return pid;
