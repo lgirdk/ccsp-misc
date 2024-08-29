@@ -48,7 +48,4 @@ if UNIT_TEST_DOCKER_SUPPORT
 SUBDIRS = test
 else
 SUBDIRS = Psmcli parcon LTime ServiceCtrl TimeConv webcfg_decoder MemFrag_Calc $(SETLED) $(MULTIPART_UTIL) $(BRIDGE_UTIL) $(WBCFG_TEST) dhcp_client_utils msgq_util EventSubscription FwBankInfo $(RDKSCHEDULER_TESTAPP) $(SOCKET_EXAMPLE)
-if WITH_GTEST_SUPPORT
-SUBDIRS += test
-endif
 endif

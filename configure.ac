@@ -24,21 +24,6 @@ AC_PREREQ([2.65])
 AC_INIT([CcspMisc], [1.0], [BUG-REPORT-ADDRESS])
 AM_INIT_AUTOMAKE([subdir-objects])
 LT_INIT
-GTEST_ENABLE_FLAG = ""
-
-AC_ARG_ENABLE([gtestapp],
-             AS_HELP_STRING([--enable-gtestapp],[enable Gtest support (default is no)]),
-             [
-               case "${enableval}" in
-                yes) GTEST_SUPPORT_ENABLED=true
-                     GTEST_ENABLE_FLAG="-DGTEST_ENABLE"
-                     m4_if(m4_sysval,[0],[AC_CONFIG_FILES([source/test/Makefile source/test/bridge_utils/Makefile])]);;
-                no) GTEST_SUPPORT_ENABLED=false AC_MSG_ERROR([Gtest support is disabled]);;
-                 *) AC_MSG_ERROR([bad value ${enableval} for --enable-gtestapp ]);;
-               esac
-             ],
-             [echo "Gtestapp is disabled"])
-AM_CONDITIONAL([WITH_GTEST_SUPPORT], [test x$GTEST_SUPPORT_ENABLED = xtrue])
 
 AC_ARG_ENABLE([vts_bridge_util],
              AS_HELP_STRING([--enable-vts_bridge_util],[enable vts_bridge_util (default is no)]),
@@ -131,7 +116,8 @@ AC_ARG_ENABLE([unitTestDockerSupport],
              [
               UNIT_TEST_DOCKER_SUPPORT=""
                case "${enableval}" in
-                yes) UNIT_TEST_DOCKER_SUPPORT=true;;
+                yes) UNIT_TEST_DOCKER_SUPPORT=true
+                     m4_if(m4_sysval,[0],[AC_CONFIG_FILES([source/test/Makefile source/test/bridge_utils/Makefile])]);;
                 no) UNIT_TEST_DOCKER_SUPPORT=false;;
                  *) AC_MSG_ERROR([bad value ${enableval} for --enable-unitTestDockerSupport ]);;
                esac
@@ -188,8 +174,6 @@ AM_COND_IF([BRIDGE_UTILS_BIN_ENABLE], [AC_CONFIG_FILES([source/bridge_utils/brid
 AM_COND_IF([RDKSCHEDULER_TESTAPP_ENABLE], [AC_CONFIG_FILES([source/RdkSchdeuler_TestApp/Makefile])])
 
 AM_COND_IF([SOCKET_EXAMPLE_ENABLE], [AC_CONFIG_FILES([source/Socket_Example/Makefile])])
-
-AC_SUBST(GTEST_ENABLE_FLAG)
 
 AC_SUBST(UNIT_TEST_DOCKER_SUPPORT)
 

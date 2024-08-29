@@ -47,8 +47,6 @@ bridgeUtils_gtest_bin_SOURCES = bridgeUtilsTest.cpp \
 
 bridgeUtils_gtest_bin_LDFLAGS = -lgtest -lgmock -lgcov -lrt -lpthread
 
-if WITH_GTEST_SUPPORT
-if UNIT_TEST_DOCKER_SUPPORT
 bridgeUtils_gtest_bin_LDADD = \
     $(HOME)/usr/local/lib/libmock_fd.la \
     $(HOME)/usr/local/lib/libmock_util.la \
@@ -60,10 +58,6 @@ bridgeUtils_gtest_bin_LDADD = \
     $(HOME)/usr/local/lib/libmock_secure_wrapper.la \
     $(HOME)/usr/local/lib/libmock_privilege.la \
     $(HOME)/usr/local/lib/libmock_ccsp_common.la
-else
-bridgeUtils_gtest_bin_LDFLAGS += -lmock_fd -lmock_util -lmock_sysevent -lmock_syscfg -lmock_socket -lmock_psm -lmock_file_io -lmock_secure_wrapper -lmock_privilege -lmock_ccsp_common
-endif
-endif
 
 AM_CFLAGS += -fprofile-arcs -ftest-coverage
 AM_CXXFLAGS += -fprofile-arcs -ftest-coverage
