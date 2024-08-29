@@ -202,14 +202,7 @@ static int udhcpc_get_other_args (char * buff, size_t buff_size, dhcp_params * p
 #ifdef UDHCPC_SCRIPT_FILE
     n = snprintf(buff + cur_pos, buff_size - cur_pos, "-s %s ", UDHCPC_SERVICE_SCRIPT_FILE);
 #else
-    if (strcmp(params->ifname, "erouter0") == 0 || strcmp(params->ifname, "erouter1") == 0)
-    {
-        n = snprintf(buff + cur_pos, buff_size - cur_pos, "-s %s ", UDHCPC_SERVICE_EXE);
-    }
-    else
-    {
-        n = snprintf(buff + cur_pos, buff_size - cur_pos, "-s %s ", UDHCPC_MVLAN_SERVICE);
-    }
+    n = snprintf(buff + cur_pos, buff_size - cur_pos, "-s %s ", UDHCPC_SERVICE_EXE);
 #endif
     if (n < 0 || n >= buff_size - cur_pos)
     {
