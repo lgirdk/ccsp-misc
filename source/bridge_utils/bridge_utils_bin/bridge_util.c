@@ -48,7 +48,10 @@ static void  *bus_handle  = NULL;
 static cap_user   appcaps;
 
 int InstanceNumber = 0; 
-int DeviceMode = 0,ovsEnable = 0 , bridgeUtilEnable = 0 , skipWiFi=0 , skipMoCA = 0 , ethWanEnabled =0 , PORT2ENABLE = 0, eb_enable = 0; // router = 0, bridge = 2
+int DeviceMode = 0,ovsEnable = 0 , bridgeUtilEnable = 0 , skipWiFi=0 , ethWanEnabled =0 , PORT2ENABLE = 0, eb_enable = 0; // router = 0, bridge = 2
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
+int skipMoCA = 0;
+#endif
 int wan_mode = 0;
 #ifdef RDKB_EXTENDER_ENABLED
 int DeviceNetworkingMode = DEVICE_NETWORKINGMODE_ROUTER; // 0 is router, 1 is extender.
@@ -59,7 +62,9 @@ char primaryBridgeName[64] = {0} , ethWanIfaceName[64] ={0} ;
 int BridgeOprInPropgress = -1;
 int syseventfd_vlan = 0 ;
 token_t sysevent_token_vlan;
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
 int MocaIsolation_Enabled =0 ;
+#endif
 
 int syncMembers = 0 ;
 
@@ -75,7 +80,9 @@ time_t utc_time;
 static char *l2netBridgeName = "dmsb.l2net.%d.Name";
 static char *l2netVlanID = "dmsb.l2net.%d.Vid";
 static char *l2netEthMembers = "dmsb.l2net.%d.Members.Eth";
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
 static char *l2netMocaMembers = "dmsb.l2net.%d.Members.Moca";
+#endif
 static char *l2netGreMembers = "dmsb.l2net.%d.Members.Gre";
 #ifdef RDK_ONEWIFI
 static char *l2netWiFiMembers = "dmsb.l2net.%d.Members.OneWiFi";
@@ -86,9 +93,11 @@ static char *l2netLinkMembers = "dmsb.l2net.%d.Members.Link";
 static char *l2netVirualParentIfname = "dmsb.l2net.%d.Members.VirtualParentIfname";
 
 static char *l2netEthWanInterface = "dmsb.l2net.EthWanInterface";
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
 static char *mocaIsolation = "dmsb.l2net.HomeNetworkIsolation";
 
 static char *mocaIsolationL3Net = "dmsb.MultiLAN.MoCAIsoLation_l3net";
+#endif
 static char *LnFL3Net = "dmsb.MultiLAN.LnF_l3net";
 static char *MeshBhaulL3Net = "dmsb.MultiLAN.MeshBhaul_l3net";
 static char *MeshWiFiBhaulL3Net_2G = "dmsb.MultiLAN.MeshWiFiBhaul_2G_l3net";
@@ -493,8 +502,10 @@ int getMTU(int InstanceNumber)
 		case HOTSPOT_SECURE_5G:
 					break;
 
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
 		case MOCA_ISOLATION:
 					break;	
+#endif
 
 		default :
 					bridge_util_log("Default case\n");
@@ -503,7 +514,7 @@ int getMTU(int InstanceNumber)
 	return mtu;	
 }
 
-
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
 /*********************************************************************************************
 
     caller:  CreateBrInterface
@@ -717,7 +728,7 @@ void disableMoCaIsolationSettings (bridgeDetails *bridgeInfo)
 	
 #endif
 }
-
+#endif
 
 /*********************************************************************************************
 
@@ -914,7 +925,7 @@ int getIfList(bridgeDetails *bridgeInfo)
 
     }
 
-
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
     if ( skipMoCA != 1 )
     {
 		    memset(paramName,0,sizeof(paramName)); 
@@ -939,7 +950,7 @@ int getIfList(bridgeDetails *bridgeInfo)
 
 		    }
     }
-
+#endif
     if ( skipWiFi != 1 )
     {
     		    memset(paramName,0,sizeof(paramName)); 
@@ -1189,14 +1200,17 @@ int HandlePreConfigGeneric(bridgeDetails *bridgeInfo,int InstanceNumber)
 		case LOST_N_FOUND:
 					if ( BridgeOprInPropgress == DELETE_BRIDGE )
 					{
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
 						bridge_util_log("%s : operation is to delete bridge, calling disableMoCaIsolationSettings\n",__FUNCTION__); 
 
 						disableMoCaIsolationSettings (bridgeInfo);
-
+#endif
 					}			
 					break;
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
 		case MOCA_ISOLATION:
 					break;	
+#endif
 
 		case MESH:
 					break;
@@ -1393,7 +1407,7 @@ int HandlePostConfigGeneric(bridgeDetails *bridgeInfo,int InstanceNumber)
                         }
 					}
 					break;
-
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
 			case MOCA_ISOLATION:
 
 					if ( MocaIsolation_Enabled && BridgeOprInPropgress == CREATE_BRIDGE)
@@ -1404,7 +1418,7 @@ int HandlePostConfigGeneric(bridgeDetails *bridgeInfo,int InstanceNumber)
 					}
 
 					break;	
-
+#endif
 			case HOTSPOT_2G:
 					break;
 
@@ -1612,6 +1626,7 @@ int updateBridgeInfo(bridgeDetails *bridgeInfo, char* ifNameToBeUpdated, int Opr
 
 			vlanId = bridgeInfo->vlanID ;
 			break;
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
 		case IF_MOCA_BRIDGEUTIL: 
 			if( ifNameToBeUpdated[0] != '\0' )
 			{
@@ -1622,6 +1637,7 @@ int updateBridgeInfo(bridgeDetails *bridgeInfo, char* ifNameToBeUpdated, int Opr
 				strncpy(IfList_Copy,bridgeInfo->MoCAIfList,sizeof(IfList_Copy)-1);
 			}
 			break;
+#endif
 		case IF_OTHER_BRIDGEUTIL: 
 			if( ifNameToBeUpdated[0] != '\0' )
 			{
@@ -1872,12 +1888,13 @@ int CreateBrInterface()
                 bridgeCreated = 1 ;
 		updateBridgeInfo(bridgeInfo,"",IF_UP_CMD,IF_ETH_BRIDGEUTIL);		
     	}
-
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
     	if ( bridgeInfo->MoCAIfList[0] != '\0')
     	{
         	bridgeCreated = 1 ;
 		updateBridgeInfo(bridgeInfo,"",IF_UP_CMD,IF_MOCA_BRIDGEUTIL); 				
 	}	
+#endif
 
 	if ( bridgeInfo->WiFiIfList[0] != '\0')
 	{		     						 
@@ -2185,7 +2202,7 @@ void removeIfaceFromBridge(bridgeDetails *bridgeInfo,char *current_if_list)
 				}
 			}  			
     		}
-
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
     		if ( bridgeInfo->MoCAIfList[0] != '\0' )
     		{
 		    	strncpy(IfList_Copy,bridgeInfo->MoCAIfList,sizeof(IfList_Copy)-1);
@@ -2204,7 +2221,7 @@ void removeIfaceFromBridge(bridgeDetails *bridgeInfo,char *current_if_list)
 			}  
 			
     		}
-		
+#endif
     		if ( bridgeInfo->WiFiIfList[0] != '\0' )
     		{
     			strncpy(IfList_Copy,bridgeInfo->WiFiIfList,sizeof(IfList_Copy)-1);
@@ -2398,7 +2415,7 @@ void addIfaceToBridge(bridgeDetails *bridgeInfo,char *current_if_list)
 			}
 		}  
     	}
-
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
     	if ( bridgeInfo->MoCAIfList[0] != '\0' )
     	{
     		strncpy(IfList_Copy,bridgeInfo->MoCAIfList,sizeof(IfList_Copy)-1);
@@ -2430,7 +2447,7 @@ void addIfaceToBridge(bridgeDetails *bridgeInfo,char *current_if_list)
 		}  
 		
     	}
-
+#endif
 
     	if ( bridgeInfo->WiFiIfList[0] != '\0' )
     	{
@@ -2879,7 +2896,7 @@ void getSettings()
 
         }
     }
-
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
 	snprintf(paramName,sizeof(paramName), mocaIsolation);
 	retPsmGet = PSM_Get_Record_Value2(bus_handle,g_Subsystem, paramName, NULL, &paramValue);
 	if (retPsmGet == CCSP_SUCCESS) 
@@ -2899,13 +2916,16 @@ void getSettings()
     		bridge_util_log("%s: psm call failed for %s, ret code %d\n", __func__, paramName, retPsmGet);
 
     	}
+#endif
 	// In bridge mode and bridge is private lan don't need add WiFi interfaces
     	if ( ( DeviceMode != 0 ) && ( InstanceNumber == PRIVATE_LAN ) )
     	{
     		skipWiFi = 1 ;
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
     		skipMoCA = 1 ;
+#endif
     	}
-
+#if !defined (NO_MOCA_FEATURE_SUPPORT)
     	if ( ( MocaIsolation_Enabled ==  1 ) && ( InstanceNumber == PRIVATE_LAN ) )
     	{
     		skipMoCA = 1 ;
@@ -2915,6 +2935,7 @@ void getSettings()
         {
         	skipMoCA = 1 ;
         }
+#endif
 }
 int HandleWifiInterface(char *Cmd_Opr)
 {
